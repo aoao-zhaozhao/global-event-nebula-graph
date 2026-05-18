@@ -90,7 +90,7 @@ function getBearerToken(request) {
 
 async function readGraph(edgeKV) {
   const data = await edgeKV.get(GRAPH_KEY, { type: 'json' });
-  if (data === undefined) {
+  if (data === undefined || data === null) {
     return jsonResponse({ error: '云端 graph 数据尚未初始化' }, 404);
   }
   return jsonResponse(data);
