@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>星图云端数据管理</title>
+    <style>
+      :root {
+        color: #edf8ff;
+        background: #070a10;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei",
+          sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-width: 1080px;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 20% 0%, rgba(77, 163, 255, 0.14), transparent 28%),
+          radial-gradient(circle at 92% 10%, rgba(93, 255, 154, 0.11), transparent 26%),
+          linear-gradient(135deg, #070a10 0%, #101820 52%, #070a10 100%);
+      }
+
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      .shell {
+        min-height: 100vh;
+        display: grid;
+        grid-template-rows: auto 1fr;
+      }
+
+      .topbar {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 18px;
+        align-items: center;
+        padding: 22px 28px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(2, 6, 10, 0.82);
+        backdrop-filter: blur(18px);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 24px;
+        line-height: 1.1;
+      }
+
+      .subtitle {
+        margin: 8px 0 0;
+        color: rgba(223, 241, 255, 0.58);
+        font-size: 13px;
+      }
+
+      .actions,
+      .tabs,
+      .form-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .button {
+        min-height: 38px;
+        padding: 0 15px;
+        border: 1px solid rgba(169, 220, 255, 0.22);
+        border-radius: 5px;
+        color: #e9f8ff;
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .button:hover {
+        border-color: rgba(169, 220, 255, 0.48);
+        background: rgba(255, 255, 255, 0.09);
+      }
+
+      .button-primary {
+        color: #081015;
+        border-color: #9ce7ff;
+        background: #9ce7ff;
+        font-weight: 700;
+      }
+
+      .button-danger {
+        border-color: rgba(255, 91, 114, 0.42);
+        color: #ffdbe0;
+      }
+
+      .button:disabled {
+        cursor: not-allowed;
+        opacity: 0.45;
+      }
+
+      .content {
+        display: grid;
+        grid-template-rows: auto auto 1fr;
+        margin: 22px 28px 28px;
+        border: 1px solid rgba(255, 255, 255, 0.11);
+        border-radius: 7px;
+        background: rgba(3, 8, 13, 0.72);
+        box-shadow: 0 20px 58px rgba(0, 0, 0, 0.26);
+        overflow: hidden;
+      }
+
+      .toolbar {
+        display: grid;
+        grid-template-columns: 260px 1fr auto auto auto;
+        gap: 10px;
+        padding: 14px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .tabs {
+        padding: 12px 14px 0;
+      }
+
+      .tab {
+        height: 34px;
+        padding: 0 14px;
+        border: 1px solid transparent;
+        border-bottom: 0;
+        border-radius: 5px 5px 0 0;
+        color: rgba(233, 247, 255, 0.64);
+        background: transparent;
+      }
+
+      .tab-active {
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        min-height: 38px;
+        border: 1px solid rgba(182, 222, 255, 0.18);
+        border-radius: 5px;
+        color: #eefaff;
+        background: rgba(0, 0, 0, 0.26);
+        outline: none;
+      }
+
+      input,
+      select {
+        padding: 0 10px;
+      }
+
+      textarea {
+        min-height: 96px;
+        resize: vertical;
+        padding: 10px;
+        line-height: 1.55;
+      }
+
+      input:focus,
+      select:focus,
+      textarea:focus {
+        border-color: rgba(156, 231, 255, 0.66);
+        box-shadow: 0 0 0 3px rgba(156, 231, 255, 0.08);
+      }
+
+      .message {
+        min-height: 24px;
+        margin: 0;
+        padding: 0 14px 12px;
+        color: rgba(232, 247, 255, 0.68);
+        font-size: 13px;
+      }
+
+      .message-error {
+        color: #ffb2bf;
+      }
+
+      .message-ok {
+        color: #a6ffc8;
+      }
+
+      .editor-layout {
+        display: grid;
+        grid-template-columns: minmax(360px, 0.95fr) minmax(500px, 1.25fr);
+        min-height: 0;
+      }
+
+      .list {
+        overflow: auto;
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .list-item {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+        align-items: center;
+        min-height: 58px;
+        padding: 12px 14px;
+        border: 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+        color: inherit;
+        background: transparent;
+        text-align: left;
+      }
+
+      .list-item:hover,
+      .list-item-active {
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      .list-title {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        min-width: 0;
+        font-weight: 700;
+      }
+
+      .list-title span:last-child {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .dot {
+        width: 9px;
+        height: 9px;
+        flex: 0 0 auto;
+        border-radius: 50%;
+      }
+
+      .list-meta {
+        margin-top: 5px;
+        color: rgba(226, 243, 255, 0.48);
+        font-size: 12px;
+      }
+
+      .score {
+        color: rgba(255, 226, 161, 0.92);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .form {
+        overflow: auto;
+        padding: 18px;
+      }
+
+      .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+
+      .field {
+        display: grid;
+        gap: 7px;
+      }
+
+      .field label {
+        color: rgba(232, 247, 255, 0.64);
+        font-size: 12px;
+      }
+
+      .field-wide {
+        grid-column: 1 / -1;
+      }
+
+      .form-actions {
+        justify-content: flex-end;
+        margin-top: 18px;
+        padding-top: 16px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <h1>星图云端数据管理</h1>
+          <p class="subtitle">维护 ESA KV 中的星图数据。保存需要填写 KV 里的 admin_token。</p>
+        </div>
+        <div class="actions">
+          <a class="button" href="/" target="_blank" rel="noreferrer">打开星图</a>
+          <button class="button" id="reloadButton" type="button">重新读取</button>
+          <button class="button button-primary" id="saveAllButton" type="button">保存到云端</button>
+        </div>
+      </header>
+
+      <section class="content">
+        <div class="tabs">
+          <button class="tab tab-active" id="nodesTab" type="button">节点</button>
+          <button class="tab" id="linksTab" type="button">关系</button>
+        </div>
+        <div class="toolbar">
+          <input id="adminTokenInput" type="password" placeholder="admin_token" autocomplete="current-password" />
+          <input id="searchInput" type="search" placeholder="搜索名称、id、摘要或关系" />
+          <button class="button" id="newButton" type="button">新增</button>
+          <button class="button" id="exportButton" type="button">导出 JSON</button>
+          <button class="button" id="importButton" type="button">导入 JSON</button>
+        </div>
+        <p class="message" id="message">读取中...</p>
+
+        <div class="editor-layout" id="nodesPane">
+          <div class="list" id="nodeList"></div>
+          <form class="form" id="nodeForm">
+            <div class="form-grid">
+              <div class="field">
+                <label for="nodeId">ID</label>
+                <input id="nodeId" name="id" required pattern="[a-zA-Z0-9_-]+" />
+              </div>
+              <div class="field">
+                <label for="nodeType">类型</label>
+                <select id="nodeType" name="type" required></select>
+              </div>
+              <div class="field">
+                <label for="nodeName">名称</label>
+                <input id="nodeName" name="name" required />
+              </div>
+              <div class="field">
+                <label for="nodeImportance">重要度 0-10</label>
+                <input id="nodeImportance" name="importance" type="number" min="0" max="10" step="0.1" required />
+              </div>
+              <div class="field field-wide">
+                <label for="nodeYear">年份</label>
+                <input id="nodeYear" name="year" required />
+              </div>
+              <div class="field field-wide">
+                <label for="nodeSummary">摘要</label>
+                <textarea id="nodeSummary" name="summary" required></textarea>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="button button-danger" id="deleteNodeButton" type="button">删除节点</button>
+              <button class="button button-primary" type="submit">应用到列表</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="editor-layout hidden" id="linksPane">
+          <div class="list" id="linkList"></div>
+          <form class="form" id="linkForm">
+            <div class="form-grid">
+              <div class="field">
+                <label for="linkSource">Source</label>
+                <select id="linkSource" name="source" required></select>
+              </div>
+              <div class="field">
+                <label for="linkTarget">Target</label>
+                <select id="linkTarget" name="target" required></select>
+              </div>
+              <div class="field">
+                <label for="linkRelation">关系</label>
+                <input id="linkRelation" name="relation" required />
+              </div>
+              <div class="field">
+                <label for="linkStrength">强度 0-1</label>
+                <input id="linkStrength" name="strength" type="number" min="0" max="1" step="0.01" required />
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="button button-danger" id="deleteLinkButton" type="button">删除关系</button>
+              <button class="button button-primary" type="submit">应用到列表</button>
+            </div>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="/src/admin.js"></script>
+  </body>
+</html>

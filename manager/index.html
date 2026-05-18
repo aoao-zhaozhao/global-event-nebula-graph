@@ -1,0 +1,907 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>星图管理器</title>
+    <style>
+      :root {
+        color: #edf8ff;
+        background: #070a10;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei",
+          sans-serif;
+        font-synthesis: none;
+        text-rendering: geometricPrecision;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-width: 1080px;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 22% 12%, rgba(77, 163, 255, 0.16), transparent 28%),
+          radial-gradient(circle at 84% 2%, rgba(93, 255, 154, 0.12), transparent 24%),
+          linear-gradient(135deg, #070a10 0%, #101820 52%, #070a10 100%);
+      }
+
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      .shell {
+        min-height: 100vh;
+        display: grid;
+        grid-template-rows: auto 1fr;
+      }
+
+      .topbar {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 20px;
+        align-items: center;
+        padding: 22px 28px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(2, 6, 10, 0.82);
+        backdrop-filter: blur(18px);
+      }
+
+      .title h1 {
+        margin: 0;
+        font-size: 25px;
+        line-height: 1.1;
+        letter-spacing: 0;
+      }
+
+      .title p {
+        margin: 8px 0 0;
+        color: rgba(223, 241, 255, 0.56);
+        font-size: 13px;
+      }
+
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 38px;
+        padding: 0 15px;
+        border: 1px solid rgba(169, 220, 255, 0.22);
+        border-radius: 5px;
+        color: #e9f8ff;
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .button:hover {
+        border-color: rgba(169, 220, 255, 0.48);
+        background: rgba(255, 255, 255, 0.09);
+      }
+
+      .button-primary {
+        color: #081015;
+        border-color: #9ce7ff;
+        background: #9ce7ff;
+        font-weight: 700;
+      }
+
+      .button-danger {
+        border-color: rgba(255, 91, 114, 0.42);
+        color: #ffdbe0;
+      }
+
+      .button:disabled {
+        cursor: not-allowed;
+        opacity: 0.42;
+      }
+
+      .content {
+        display: grid;
+        grid-template-columns: 360px 1fr;
+        gap: 22px;
+        padding: 22px 28px 28px;
+      }
+
+      .panel {
+        min-width: 0;
+        border: 1px solid rgba(255, 255, 255, 0.11);
+        border-radius: 7px;
+        background: rgba(3, 8, 13, 0.72);
+        box-shadow: 0 20px 58px rgba(0, 0, 0, 0.26);
+      }
+
+      .panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        min-height: 57px;
+        padding: 14px 16px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+      }
+
+      .panel-header h2 {
+        margin: 0;
+        font-size: 16px;
+      }
+
+      .status-stack {
+        display: grid;
+        gap: 12px;
+        padding: 16px;
+      }
+
+      .status-row {
+        display: grid;
+        grid-template-columns: 86px 1fr;
+        gap: 12px;
+        align-items: start;
+        color: rgba(229, 245, 255, 0.72);
+        font-size: 13px;
+      }
+
+      .status-row strong {
+        color: #ffffff;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        min-height: 24px;
+        padding: 0 9px;
+        border: 1px solid rgba(255, 255, 255, 0.13);
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.04);
+        font-size: 12px;
+      }
+
+      .pill-running {
+        border-color: rgba(93, 255, 154, 0.4);
+        color: #a6ffc8;
+      }
+
+      .pill-stopped {
+        border-color: rgba(255, 209, 102, 0.42);
+        color: #ffe2a1;
+      }
+
+      .logs {
+        height: 280px;
+        overflow: auto;
+        margin: 0;
+        padding: 14px 16px;
+        color: rgba(228, 242, 255, 0.66);
+        background: rgba(0, 0, 0, 0.28);
+        font-family: "Cascadia Mono", Consolas, monospace;
+        font-size: 12px;
+        line-height: 1.62;
+        white-space: pre-wrap;
+      }
+
+      .workbench {
+        display: grid;
+        grid-template-rows: auto auto 1fr;
+        min-height: calc(100vh - 118px);
+      }
+
+      .tabs {
+        display: flex;
+        gap: 4px;
+        padding: 12px 14px 0;
+      }
+
+      .tab {
+        height: 34px;
+        padding: 0 14px;
+        border: 1px solid transparent;
+        border-bottom: 0;
+        border-radius: 5px 5px 0 0;
+        color: rgba(233, 247, 255, 0.64);
+        background: transparent;
+      }
+
+      .tab-active {
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      .toolbar {
+        display: grid;
+        grid-template-columns: minmax(220px, 1fr) auto auto;
+        gap: 10px;
+        padding: 14px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .field {
+        display: grid;
+        gap: 7px;
+      }
+
+      .field label {
+        color: rgba(232, 247, 255, 0.64);
+        font-size: 12px;
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        min-height: 38px;
+        border: 1px solid rgba(182, 222, 255, 0.18);
+        border-radius: 5px;
+        color: #eefaff;
+        background: rgba(0, 0, 0, 0.26);
+        outline: none;
+      }
+
+      input,
+      select {
+        padding: 0 10px;
+      }
+
+      textarea {
+        min-height: 96px;
+        resize: vertical;
+        padding: 10px;
+        line-height: 1.55;
+      }
+
+      input:focus,
+      select:focus,
+      textarea:focus {
+        border-color: rgba(156, 231, 255, 0.66);
+        box-shadow: 0 0 0 3px rgba(156, 231, 255, 0.08);
+      }
+
+      .editor-layout {
+        display: grid;
+        grid-template-columns: minmax(320px, 0.95fr) minmax(420px, 1.2fr);
+        min-height: 0;
+      }
+
+      .list {
+        overflow: auto;
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .list-item {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+        align-items: center;
+        min-height: 58px;
+        padding: 12px 14px;
+        border: 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+        color: inherit;
+        background: transparent;
+        text-align: left;
+      }
+
+      .list-item:hover,
+      .list-item-active {
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      .list-title {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        min-width: 0;
+        font-weight: 700;
+      }
+
+      .dot {
+        width: 9px;
+        height: 9px;
+        flex: 0 0 auto;
+        border-radius: 50%;
+      }
+
+      .list-title span:last-child {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .list-meta {
+        margin-top: 5px;
+        color: rgba(226, 243, 255, 0.48);
+        font-size: 12px;
+      }
+
+      .score {
+        color: rgba(255, 226, 161, 0.92);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .form {
+        overflow: auto;
+        padding: 18px;
+      }
+
+      .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+
+      .field-wide {
+        grid-column: 1 / -1;
+      }
+
+      .form-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 18px;
+        padding-top: 16px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .message {
+        min-height: 24px;
+        padding: 0 14px;
+        color: rgba(232, 247, 255, 0.68);
+        font-size: 13px;
+      }
+
+      .message-error {
+        color: #ffb2bf;
+      }
+
+      .message-ok {
+        color: #a6ffc8;
+      }
+
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div class="title">
+          <h1>星图管理器</h1>
+          <p>启动本地星图项目，维护节点和关系数据。保存前会自动备份原数据文件。</p>
+        </div>
+        <div class="actions">
+          <button class="button" id="refreshButton" type="button">刷新状态</button>
+          <button class="button button-primary" id="startButton" type="button">启动星图</button>
+          <a class="button" id="openProjectButton" href="http://localhost:5173/" target="_blank" rel="noreferrer">打开星图</a>
+        </div>
+      </header>
+
+      <section class="content">
+        <aside class="panel">
+          <div class="panel-header">
+            <h2>运行状态</h2>
+            <span class="pill pill-stopped" id="stateBadge">未启动</span>
+          </div>
+          <div class="status-stack">
+            <div class="status-row">
+              <span>项目地址</span>
+              <strong id="projectUrl">http://localhost:5173/</strong>
+            </div>
+            <div class="status-row">
+              <span>进程 PID</span>
+              <strong id="projectPid">-</strong>
+            </div>
+            <div class="status-row">
+              <span>数据规模</span>
+              <strong id="dataSummary">读取中</strong>
+            </div>
+            <div class="status-row">
+              <span>最近备份</span>
+              <strong id="backupSummary">-</strong>
+            </div>
+          </div>
+          <div class="panel-header">
+            <h2>启动日志</h2>
+          </div>
+          <pre class="logs" id="logs"></pre>
+        </aside>
+
+        <section class="panel workbench">
+          <div class="tabs">
+            <button class="tab tab-active" id="nodesTab" type="button">节点</button>
+            <button class="tab" id="linksTab" type="button">关系</button>
+          </div>
+          <div class="toolbar">
+            <input id="searchInput" type="search" placeholder="搜索名称、id、摘要或关系" />
+            <button class="button" id="newButton" type="button">新增</button>
+            <button class="button button-primary" id="saveAllButton" type="button">保存数据</button>
+          </div>
+          <p class="message" id="message"></p>
+
+          <div class="editor-layout" id="nodesPane">
+            <div class="list" id="nodeList"></div>
+            <form class="form" id="nodeForm">
+              <div class="form-grid">
+                <div class="field">
+                  <label for="nodeId">ID</label>
+                  <input id="nodeId" name="id" required pattern="[a-zA-Z0-9_-]+" />
+                </div>
+                <div class="field">
+                  <label for="nodeType">类型</label>
+                  <select id="nodeType" name="type" required></select>
+                </div>
+                <div class="field">
+                  <label for="nodeName">名称</label>
+                  <input id="nodeName" name="name" required />
+                </div>
+                <div class="field">
+                  <label for="nodeImportance">重要度 0-10</label>
+                  <input id="nodeImportance" name="importance" type="number" min="0" max="10" step="0.1" required />
+                </div>
+                <div class="field field-wide">
+                  <label for="nodeYear">年份</label>
+                  <input id="nodeYear" name="year" required />
+                </div>
+                <div class="field field-wide">
+                  <label for="nodeSummary">摘要</label>
+                  <textarea id="nodeSummary" name="summary" required></textarea>
+                </div>
+              </div>
+              <div class="form-actions">
+                <button class="button button-danger" id="deleteNodeButton" type="button">删除节点</button>
+                <button class="button button-primary" type="submit">应用到列表</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="editor-layout hidden" id="linksPane">
+            <div class="list" id="linkList"></div>
+            <form class="form" id="linkForm">
+              <div class="form-grid">
+                <div class="field">
+                  <label for="linkSource">Source</label>
+                  <select id="linkSource" name="source" required></select>
+                </div>
+                <div class="field">
+                  <label for="linkTarget">Target</label>
+                  <select id="linkTarget" name="target" required></select>
+                </div>
+                <div class="field">
+                  <label for="linkRelation">关系</label>
+                  <input id="linkRelation" name="relation" required />
+                </div>
+                <div class="field">
+                  <label for="linkStrength">强度 0-1</label>
+                  <input id="linkStrength" name="strength" type="number" min="0" max="1" step="0.01" required />
+                </div>
+              </div>
+              <div class="form-actions">
+                <button class="button button-danger" id="deleteLinkButton" type="button">删除关系</button>
+                <button class="button button-primary" type="submit">应用到列表</button>
+              </div>
+            </form>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script>
+      const state = {
+        data: null,
+        activeTab: 'nodes',
+        selectedNodeId: null,
+        selectedLinkIndex: null,
+        lastBackup: '-',
+      };
+
+      const $ = (id) => document.getElementById(id);
+      const nodeFields = {
+        id: $('nodeId'),
+        type: $('nodeType'),
+        name: $('nodeName'),
+        importance: $('nodeImportance'),
+        year: $('nodeYear'),
+        summary: $('nodeSummary'),
+      };
+      const linkFields = {
+        source: $('linkSource'),
+        target: $('linkTarget'),
+        relation: $('linkRelation'),
+        strength: $('linkStrength'),
+      };
+
+      function setMessage(text, kind = '') {
+        const el = $('message');
+        el.textContent = text;
+        el.className = `message ${kind ? `message-${kind}` : ''}`;
+      }
+
+      async function api(path, options = {}) {
+        const response = await fetch(path, {
+          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          ...options,
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || '请求失败');
+        return payload;
+      }
+
+      function typeColor(type) {
+        return state.data?.typeColors?.[type] || '#9ce7ff';
+      }
+
+      function nodeName(id) {
+        const node = state.data.nodes.find((item) => item.id === id);
+        return node ? `${node.name} (${node.id})` : id;
+      }
+
+      function syncSelectors() {
+        const typeOptions = Object.entries(state.data.typeLabels)
+          .map(([id, label]) => `<option value="${id}">${label} (${id})</option>`)
+          .join('');
+        nodeFields.type.innerHTML = typeOptions;
+
+        const nodeOptions = state.data.nodes
+          .map((node) => `<option value="${node.id}">${node.name} (${node.id})</option>`)
+          .join('');
+        linkFields.source.innerHTML = nodeOptions;
+        linkFields.target.innerHTML = nodeOptions;
+      }
+
+      function renderStatus(payload) {
+        const project = payload.project;
+        const labels = {
+          running: '运行中',
+          starting: '启动中',
+          external: '已外部启动',
+          stopped: '未启动',
+        };
+        $('stateBadge').textContent = labels[project.state] || project.state;
+        $('stateBadge').className =
+          project.state === 'running' || project.state === 'external'
+            ? 'pill pill-running'
+            : 'pill pill-stopped';
+        $('projectUrl').textContent = project.url;
+        $('projectPid').textContent = project.pid || '-';
+        $('openProjectButton').href = project.url;
+        $('logs').textContent = payload.logs.length ? payload.logs.join('\n') : '暂无日志';
+      }
+
+      function renderSummary() {
+        if (!state.data) return;
+        $('dataSummary').textContent = `${state.data.nodes.length} 个节点，${state.data.links.length} 条关系`;
+        $('backupSummary').textContent = state.lastBackup;
+      }
+
+      function matchesSearch(text) {
+        const keyword = $('searchInput').value.trim().toLowerCase();
+        return !keyword || text.toLowerCase().includes(keyword);
+      }
+
+      function renderNodeList() {
+        const html = state.data.nodes
+          .filter((node) => matchesSearch(`${node.id} ${node.name} ${node.type} ${node.summary}`))
+          .map((node) => `
+            <button class="list-item ${node.id === state.selectedNodeId ? 'list-item-active' : ''}" type="button" data-node-id="${node.id}">
+              <span>
+                <span class="list-title">
+                  <span class="dot" style="background:${typeColor(node.type)}"></span>
+                  <span>${node.name}</span>
+                </span>
+                <span class="list-meta">${node.id} · ${state.data.typeLabels[node.type]} · ${node.year}</span>
+              </span>
+              <span class="score">${Number(node.importance).toFixed(1)}</span>
+            </button>
+          `)
+          .join('');
+        $('nodeList').innerHTML = html || '<div class="status-stack">没有匹配的节点</div>';
+      }
+
+      function renderLinkList() {
+        const html = state.data.links
+          .map((link, index) => ({ link, index }))
+          .filter(({ link }) => matchesSearch(`${link.source} ${link.target} ${link.relation} ${nodeName(link.source)} ${nodeName(link.target)}`))
+          .map(({ link, index }) => `
+            <button class="list-item ${index === state.selectedLinkIndex ? 'list-item-active' : ''}" type="button" data-link-index="${index}">
+              <span>
+                <span class="list-title">
+                  <span>${nodeName(link.source)} → ${nodeName(link.target)}</span>
+                </span>
+                <span class="list-meta">${link.relation}</span>
+              </span>
+              <span class="score">${Number(link.strength).toFixed(2)}</span>
+            </button>
+          `)
+          .join('');
+        $('linkList').innerHTML = html || '<div class="status-stack">没有匹配的关系</div>';
+      }
+
+      function fillNodeForm(node) {
+        nodeFields.id.value = node.id || '';
+        nodeFields.type.value = node.type || Object.keys(state.data.typeLabels)[0];
+        nodeFields.name.value = node.name || '';
+        nodeFields.importance.value = node.importance ?? 5;
+        nodeFields.year.value = node.year ?? '';
+        nodeFields.summary.value = node.summary || '';
+        $('deleteNodeButton').disabled = !state.selectedNodeId;
+      }
+
+      function fillLinkForm(link) {
+        const fallback = state.data.nodes[0]?.id || '';
+        linkFields.source.value = link.source || fallback;
+        linkFields.target.value = link.target || state.data.nodes[1]?.id || fallback;
+        linkFields.relation.value = link.relation || '';
+        linkFields.strength.value = link.strength ?? 0.5;
+        $('deleteLinkButton').disabled = state.selectedLinkIndex === null;
+      }
+
+      function selectNode(id) {
+        const node = state.data.nodes.find((item) => item.id === id);
+        if (!node) return;
+        state.selectedNodeId = id;
+        fillNodeForm(node);
+        renderNodeList();
+      }
+
+      function selectLink(index) {
+        const link = state.data.links[index];
+        if (!link) return;
+        state.selectedLinkIndex = index;
+        fillLinkForm(link);
+        renderLinkList();
+      }
+
+      function renderAll() {
+        syncSelectors();
+        renderSummary();
+        renderNodeList();
+        renderLinkList();
+
+        if (state.selectedNodeId) {
+          selectNode(state.selectedNodeId);
+        } else {
+          fillNodeForm({ type: Object.keys(state.data.typeLabels)[0], importance: 5 });
+        }
+
+        if (state.selectedLinkIndex !== null && state.data.links[state.selectedLinkIndex]) {
+          selectLink(state.selectedLinkIndex);
+        } else {
+          fillLinkForm({});
+        }
+      }
+
+      function switchTab(tab) {
+        state.activeTab = tab;
+        $('nodesTab').className = tab === 'nodes' ? 'tab tab-active' : 'tab';
+        $('linksTab').className = tab === 'links' ? 'tab tab-active' : 'tab';
+        $('nodesPane').classList.toggle('hidden', tab !== 'nodes');
+        $('linksPane').classList.toggle('hidden', tab !== 'links');
+      }
+
+      function collectNodeForm() {
+        return {
+          id: nodeFields.id.value.trim(),
+          type: nodeFields.type.value,
+          name: nodeFields.name.value.trim(),
+          importance: Number(nodeFields.importance.value),
+          year: nodeFields.year.value.trim(),
+          summary: nodeFields.summary.value.trim(),
+        };
+      }
+
+      function collectLinkForm() {
+        return {
+          source: linkFields.source.value,
+          target: linkFields.target.value,
+          relation: linkFields.relation.value.trim(),
+          strength: Number(linkFields.strength.value),
+        };
+      }
+
+      function validateNode(node) {
+        if (!/^[a-zA-Z0-9_-]+$/.test(node.id)) throw new Error('节点 ID 只能包含字母、数字、下划线或短横线');
+        if (!node.name) throw new Error('节点名称不能为空');
+        if (!node.summary) throw new Error('节点摘要不能为空');
+        if (!Number.isFinite(node.importance) || node.importance < 0 || node.importance > 10) {
+          throw new Error('重要度必须在 0 到 10 之间');
+        }
+      }
+
+      function validateLink(link) {
+        if (link.source === link.target) throw new Error('关系的 Source 和 Target 不能相同');
+        if (!link.relation) throw new Error('关系说明不能为空');
+        if (!Number.isFinite(link.strength) || link.strength < 0 || link.strength > 1) {
+          throw new Error('关系强度必须在 0 到 1 之间');
+        }
+      }
+
+      async function loadData() {
+        state.data = await api('/api/data');
+        state.selectedNodeId = state.data.nodes[0]?.id || null;
+        state.selectedLinkIndex = state.data.links.length ? 0 : null;
+        renderAll();
+      }
+
+      async function refreshStatus() {
+        renderStatus(await api('/api/status'));
+      }
+
+      $('refreshButton').addEventListener('click', async () => {
+        try {
+          await refreshStatus();
+          setMessage('状态已刷新', 'ok');
+        } catch (error) {
+          setMessage(error.message, 'error');
+        }
+      });
+
+      $('startButton').addEventListener('click', async () => {
+        try {
+          $('startButton').disabled = true;
+          const payload = await api('/api/project/start', { method: 'POST' });
+          renderStatus(payload);
+          setMessage('启动命令已发送，可以稍后点击打开星图', 'ok');
+        } catch (error) {
+          setMessage(error.message, 'error');
+        } finally {
+          $('startButton').disabled = false;
+        }
+      });
+
+      $('nodesTab').addEventListener('click', () => switchTab('nodes'));
+      $('linksTab').addEventListener('click', () => switchTab('links'));
+      $('searchInput').addEventListener('input', () => {
+        renderNodeList();
+        renderLinkList();
+      });
+
+      $('newButton').addEventListener('click', () => {
+        if (state.activeTab === 'nodes') {
+          state.selectedNodeId = null;
+          fillNodeForm({ type: Object.keys(state.data.typeLabels)[0], importance: 5 });
+          renderNodeList();
+        } else {
+          state.selectedLinkIndex = null;
+          fillLinkForm({});
+          renderLinkList();
+        }
+        setMessage('已切换到新增模式');
+      });
+
+      $('nodeList').addEventListener('click', (event) => {
+        const item = event.target.closest('[data-node-id]');
+        if (item) selectNode(item.dataset.nodeId);
+      });
+
+      $('linkList').addEventListener('click', (event) => {
+        const item = event.target.closest('[data-link-index]');
+        if (item) selectLink(Number(item.dataset.linkIndex));
+      });
+
+      $('nodeForm').addEventListener('submit', (event) => {
+        event.preventDefault();
+        try {
+          const node = collectNodeForm();
+          validateNode(node);
+          const duplicate = state.data.nodes.find((item) => item.id === node.id && item.id !== state.selectedNodeId);
+          if (duplicate) throw new Error(`节点 ID 已存在：${node.id}`);
+
+          if (state.selectedNodeId) {
+            const oldId = state.selectedNodeId;
+            const index = state.data.nodes.findIndex((item) => item.id === oldId);
+            state.data.nodes[index] = node;
+            state.data.links = state.data.links.map((link) => ({
+              ...link,
+              source: link.source === oldId ? node.id : link.source,
+              target: link.target === oldId ? node.id : link.target,
+            }));
+          } else {
+            state.data.nodes.push(node);
+          }
+
+          state.selectedNodeId = node.id;
+          renderAll();
+          setMessage('节点已应用到列表，点击保存数据后写入文件', 'ok');
+        } catch (error) {
+          setMessage(error.message, 'error');
+        }
+      });
+
+      $('linkForm').addEventListener('submit', (event) => {
+        event.preventDefault();
+        try {
+          const link = collectLinkForm();
+          validateLink(link);
+
+          if (state.selectedLinkIndex !== null) {
+            state.data.links[state.selectedLinkIndex] = link;
+          } else {
+            state.data.links.push(link);
+            state.selectedLinkIndex = state.data.links.length - 1;
+          }
+
+          renderAll();
+          setMessage('关系已应用到列表，点击保存数据后写入文件', 'ok');
+        } catch (error) {
+          setMessage(error.message, 'error');
+        }
+      });
+
+      $('deleteNodeButton').addEventListener('click', () => {
+        if (!state.selectedNodeId) return;
+        const node = state.data.nodes.find((item) => item.id === state.selectedNodeId);
+        if (!confirm(`确认删除节点“${node.name}”？相关关系也会一起删除。`)) return;
+
+        state.data.nodes = state.data.nodes.filter((item) => item.id !== state.selectedNodeId);
+        state.data.links = state.data.links.filter(
+          (link) => link.source !== state.selectedNodeId && link.target !== state.selectedNodeId,
+        );
+        state.selectedNodeId = state.data.nodes[0]?.id || null;
+        state.selectedLinkIndex = state.data.links.length ? 0 : null;
+        renderAll();
+        setMessage('节点已删除，点击保存数据后写入文件', 'ok');
+      });
+
+      $('deleteLinkButton').addEventListener('click', () => {
+        if (state.selectedLinkIndex === null) return;
+        const link = state.data.links[state.selectedLinkIndex];
+        if (!confirm(`确认删除关系“${nodeName(link.source)} → ${nodeName(link.target)}”？`)) return;
+
+        state.data.links.splice(state.selectedLinkIndex, 1);
+        state.selectedLinkIndex = state.data.links.length ? Math.min(state.selectedLinkIndex, state.data.links.length - 1) : null;
+        renderAll();
+        setMessage('关系已删除，点击保存数据后写入文件', 'ok');
+      });
+
+      $('saveAllButton').addEventListener('click', async () => {
+        try {
+          $('saveAllButton').disabled = true;
+          const payload = await api('/api/data', {
+            method: 'PUT',
+            body: new Blob([JSON.stringify(state.data)], { type: 'application/json; charset=utf-8' }),
+          });
+          state.data = payload.data;
+          state.lastBackup = payload.backupFile;
+          renderAll();
+          await refreshStatus();
+          setMessage(`数据已保存，备份文件：${payload.backupFile}`, 'ok');
+        } catch (error) {
+          setMessage(error.message, 'error');
+        } finally {
+          $('saveAllButton').disabled = false;
+        }
+      });
+
+      async function bootstrap() {
+        try {
+          await Promise.all([loadData(), refreshStatus()]);
+          setInterval(refreshStatus, 3000);
+          setMessage('管理器已就绪', 'ok');
+        } catch (error) {
+          setMessage(error.message, 'error');
+        }
+      }
+
+      bootstrap();
+    </script>
+  </body>
+</html>

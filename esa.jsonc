@@ -1,0 +1,8 @@
+{
+  "name": "global-event-nebula-graph",
+  "entry": "edge/index.js",
+  "assets": {
+    "directory": "./dist",
+    "notFoundStrategy": "singlePageApplication"
+  }
+}

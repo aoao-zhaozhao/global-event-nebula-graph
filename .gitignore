@@ -1,0 +1,9 @@
+node_modules/
+dist/
+_pydeps/
+_frames/
+backups/
+.env
+.env.*
+*.log
+*.mp4
