@@ -5,9 +5,13 @@ const state = {
   activeTab: 'nodes',
   selectedNodeId: null,
   selectedLinkIndex: null,
+  authed: false,
+  loadingAuth: true,
+  saving: false,
 };
 
 const $ = (id) => document.getElementById(id);
+
 const nodeFields = {
   id: $('nodeId'),
   type: $('nodeType'),
@@ -16,6 +20,7 @@ const nodeFields = {
   year: $('nodeYear'),
   summary: $('nodeSummary'),
 };
+
 const linkFields = {
   source: $('linkSource'),
   target: $('linkTarget'),
@@ -31,12 +36,88 @@ function setMessage(text, kind = '') {
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
+    credentials: 'include',
+    cache: 'no-store',
     headers: { Accept: 'application/json', ...options.headers },
     ...options,
   });
-  const payload = await response.json();
-  if (!response.ok) throw new Error(payload.error || '请求失败');
+
+  let payload = {};
+  try {
+    payload = await response.json();
+  } catch {
+    payload = {};
+  }
+
+  if (!response.ok) {
+    throw new Error(payload.error || `请求失败（${response.status}）`);
+  }
+
   return payload;
+}
+
+function updateAuthUi() {
+  $('saveAllButton').disabled = state.loadingAuth || state.saving || !state.authed;
+  $('loginButton').disabled = state.loadingAuth || state.saving;
+  $('logoutButton').disabled = state.loadingAuth || state.saving || !state.authed;
+  $('adminTokenInput').placeholder = state.authed ? '已登录，必要时可重新登录' : 'admin_token（仅用于登录）';
+}
+
+async function refreshSession() {
+  state.loadingAuth = true;
+  updateAuthUi();
+
+  try {
+    const payload = await api('/api/admin/session');
+    state.authed = Boolean(payload.authenticated);
+  } catch {
+    state.authed = false;
+  } finally {
+    state.loadingAuth = false;
+    updateAuthUi();
+  }
+}
+
+async function login() {
+  try {
+    const token = $('adminTokenInput').value.trim();
+    if (!token) throw new Error('请先输入 admin_token');
+
+    state.loadingAuth = true;
+    updateAuthUi();
+
+    const payload = await api('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ token }),
+    });
+
+    state.authed = Boolean(payload.authenticated);
+    $('adminTokenInput').value = '';
+    setMessage('登录成功。token 已从输入框清除，本次会话可保存到云端。', 'ok');
+  } catch (error) {
+    state.authed = false;
+    setMessage(error.message, 'error');
+  } finally {
+    state.loadingAuth = false;
+    updateAuthUi();
+  }
+}
+
+async function logout() {
+  try {
+    state.loadingAuth = true;
+    updateAuthUi();
+    await api('/api/admin/logout', { method: 'POST' });
+    state.authed = false;
+    $('adminTokenInput').value = '';
+    setMessage('已退出登录。', 'ok');
+  } catch (error) {
+    setMessage(error.message, 'error');
+  } finally {
+    state.loadingAuth = false;
+    updateAuthUi();
+  }
 }
 
 function typeColor(type) {
@@ -46,6 +127,10 @@ function typeColor(type) {
 function nodeName(id) {
   const node = state.data.nodes.find((item) => item.id === id);
   return node ? `${node.name} (${node.id})` : id;
+}
+
+function defaultTypeId() {
+  return Object.keys(state.data?.typeLabels || defaultGraphData.typeLabels)[0];
 }
 
 function syncSelectors() {
@@ -69,19 +154,22 @@ function matchesSearch(text) {
 function renderNodeList() {
   const html = state.data.nodes
     .filter((node) => matchesSearch(`${node.id} ${node.name} ${node.type} ${node.summary}`))
-    .map((node) => `
-      <button class="list-item ${node.id === state.selectedNodeId ? 'list-item-active' : ''}" type="button" data-node-id="${node.id}">
-        <span>
-          <span class="list-title">
-            <span class="dot" style="background:${typeColor(node.type)}"></span>
-            <span>${node.name}</span>
+    .map(
+      (node) => `
+        <button class="list-item ${node.id === state.selectedNodeId ? 'list-item-active' : ''}" type="button" data-node-id="${node.id}">
+          <span>
+            <span class="list-title">
+              <span class="dot" style="background:${typeColor(node.type)}"></span>
+              <span>${node.name}</span>
+            </span>
+            <span class="list-meta">${node.id} · ${state.data.typeLabels[node.type]} · ${node.year}</span>
           </span>
-          <span class="list-meta">${node.id} · ${state.data.typeLabels[node.type]} · ${node.year}</span>
-        </span>
-        <span class="score">${Number(node.importance).toFixed(1)}</span>
-      </button>
-    `)
+          <span class="score">${Number(node.importance).toFixed(1)}</span>
+        </button>
+      `,
+    )
     .join('');
+
   $('nodeList').innerHTML = html || '<div class="form">没有匹配的节点</div>';
 }
 
@@ -89,22 +177,25 @@ function renderLinkList() {
   const html = state.data.links
     .map((link, index) => ({ link, index }))
     .filter(({ link }) => matchesSearch(`${link.source} ${link.target} ${link.relation} ${nodeName(link.source)} ${nodeName(link.target)}`))
-    .map(({ link, index }) => `
-      <button class="list-item ${index === state.selectedLinkIndex ? 'list-item-active' : ''}" type="button" data-link-index="${index}">
-        <span>
-          <span class="list-title"><span>${nodeName(link.source)} -> ${nodeName(link.target)}</span></span>
-          <span class="list-meta">${link.relation}</span>
-        </span>
-        <span class="score">${Number(link.strength).toFixed(2)}</span>
-      </button>
-    `)
+    .map(
+      ({ link, index }) => `
+        <button class="list-item ${index === state.selectedLinkIndex ? 'list-item-active' : ''}" type="button" data-link-index="${index}">
+          <span>
+            <span class="list-title"><span>${nodeName(link.source)} -> ${nodeName(link.target)}</span></span>
+            <span class="list-meta">${link.relation}</span>
+          </span>
+          <span class="score">${Number(link.strength).toFixed(2)}</span>
+        </button>
+      `,
+    )
     .join('');
+
   $('linkList').innerHTML = html || '<div class="form">没有匹配的关系</div>';
 }
 
 function fillNodeForm(node) {
   nodeFields.id.value = node.id || '';
-  nodeFields.type.value = node.type || Object.keys(state.data.typeLabels)[0];
+  nodeFields.type.value = node.type || defaultTypeId();
   nodeFields.name.value = node.name || '';
   nodeFields.importance.value = node.importance ?? 5;
   nodeFields.year.value = node.year ?? '';
@@ -146,7 +237,7 @@ function renderAll() {
     selectNode(state.selectedNodeId);
   } else {
     state.selectedNodeId = state.data.nodes[0]?.id || null;
-    fillNodeForm(state.selectedNodeId ? state.data.nodes[0] : { type: Object.keys(state.data.typeLabels)[0], importance: 5 });
+    fillNodeForm(state.selectedNodeId ? state.data.nodes[0] : { type: defaultTypeId(), importance: 5 });
   }
 
   if (state.selectedLinkIndex !== null && state.data.links[state.selectedLinkIndex]) {
@@ -206,16 +297,19 @@ async function loadData() {
   try {
     const payload = await api('/api/data');
     state.data = payload;
-    setMessage(`已读取数据：${payload.nodes.length} 个节点，${payload.links.length} 条关系`, 'ok');
+    setMessage(`已读取数据：${payload.nodes.length} 个节点，${payload.links.length} 条关系。`, 'ok');
   } catch (error) {
     state.data = structuredClone(defaultGraphData);
     setMessage(`云端数据读取失败，当前显示默认数据：${error.message}`, 'error');
   }
+
   state.selectedNodeId = state.data.nodes[0]?.id || null;
   state.selectedLinkIndex = state.data.links.length ? 0 : null;
   renderAll();
 }
 
+$('loginButton').addEventListener('click', login);
+$('logoutButton').addEventListener('click', logout);
 $('reloadButton').addEventListener('click', loadData);
 $('nodesTab').addEventListener('click', () => switchTab('nodes'));
 $('linksTab').addEventListener('click', () => switchTab('links'));
@@ -224,10 +318,17 @@ $('searchInput').addEventListener('input', () => {
   renderLinkList();
 });
 
+$('adminTokenInput').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    login();
+  }
+});
+
 $('newButton').addEventListener('click', () => {
   if (state.activeTab === 'nodes') {
     state.selectedNodeId = null;
-    fillNodeForm({ type: Object.keys(state.data.typeLabels)[0], importance: 5 });
+    fillNodeForm({ type: defaultTypeId(), importance: 5 });
     renderNodeList();
   } else {
     state.selectedLinkIndex = null;
@@ -270,7 +371,7 @@ $('nodeForm').addEventListener('submit', (event) => {
 
     state.selectedNodeId = node.id;
     renderAll();
-    setMessage('节点已应用到列表，点击保存到云端后生效', 'ok');
+    setMessage('节点已应用到列表，点击保存到云端后生效。', 'ok');
   } catch (error) {
     setMessage(error.message, 'error');
   }
@@ -290,7 +391,7 @@ $('linkForm').addEventListener('submit', (event) => {
     }
 
     renderAll();
-    setMessage('关系已应用到列表，点击保存到云端后生效', 'ok');
+    setMessage('关系已应用到列表，点击保存到云端后生效。', 'ok');
   } catch (error) {
     setMessage(error.message, 'error');
   }
@@ -308,7 +409,7 @@ $('deleteNodeButton').addEventListener('click', () => {
   state.selectedNodeId = state.data.nodes[0]?.id || null;
   state.selectedLinkIndex = state.data.links.length ? 0 : null;
   renderAll();
-  setMessage('节点已删除，点击保存到云端后生效', 'ok');
+  setMessage('节点已删除，点击保存到云端后生效。', 'ok');
 });
 
 $('deleteLinkButton').addEventListener('click', () => {
@@ -319,35 +420,42 @@ $('deleteLinkButton').addEventListener('click', () => {
   state.data.links.splice(state.selectedLinkIndex, 1);
   state.selectedLinkIndex = state.data.links.length ? Math.min(state.selectedLinkIndex, state.data.links.length - 1) : null;
   renderAll();
-  setMessage('关系已删除，点击保存到云端后生效', 'ok');
+  setMessage('关系已删除，点击保存到云端后生效。', 'ok');
 });
 
 $('saveAllButton').addEventListener('click', async () => {
+  if (!state.authed) {
+    setMessage('请先输入 admin_token 并点击登录解锁。', 'error');
+    return;
+  }
+
   try {
-    const token = $('adminTokenInput').value.trim();
-    if (!token) throw new Error('请先填写 admin_token');
-    $('saveAllButton').disabled = true;
+    state.saving = true;
+    updateAuthUi();
     const payload = await api('/api/data', {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
       body: JSON.stringify(state.data),
     });
     state.data = payload.data || state.data;
     renderAll();
-    setMessage(`已保存到云端：${state.data.nodes.length} 个节点，${state.data.links.length} 条关系`, 'ok');
+    setMessage(`已保存到云端：${state.data.nodes.length} 个节点，${state.data.links.length} 条关系。`, 'ok');
   } catch (error) {
-    setMessage(error.message, 'error');
+    if (/401|登录|授权|token/i.test(error.message)) {
+      state.authed = false;
+      setMessage(`保存失败，请重新登录：${error.message}`, 'error');
+    } else {
+      setMessage(error.message, 'error');
+    }
   } finally {
-    $('saveAllButton').disabled = false;
+    state.saving = false;
+    updateAuthUi();
   }
 });
 
 $('exportButton').addEventListener('click', async () => {
   await navigator.clipboard.writeText(JSON.stringify(state.data, null, 2));
-  setMessage('JSON 已复制到剪贴板', 'ok');
+  setMessage('JSON 已复制到剪贴板。', 'ok');
 });
 
 $('importButton').addEventListener('click', () => {
@@ -362,10 +470,15 @@ $('importButton').addEventListener('click', () => {
     state.selectedNodeId = data.nodes[0]?.id || null;
     state.selectedLinkIndex = data.links.length ? 0 : null;
     renderAll();
-    setMessage('JSON 已导入列表，点击保存到云端后生效', 'ok');
+    setMessage('JSON 已导入列表，点击保存到云端后生效。', 'ok');
   } catch (error) {
     setMessage(error.message, 'error');
   }
 });
 
-loadData();
+async function init() {
+  updateAuthUi();
+  await Promise.all([loadData(), refreshSession()]);
+}
+
+init();

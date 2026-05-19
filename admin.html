@@ -297,11 +297,13 @@
       <header class="topbar">
         <div>
           <h1>星图云端数据管理</h1>
-          <p class="subtitle">维护 ESA KV 中的星图数据。保存需要填写 KV 里的 admin_token。</p>
+          <p class="subtitle">维护 ESA KV 中的星图数据。admin_token 仅用于登录，不会在保存时再次发送。</p>
         </div>
         <div class="actions">
           <a class="button" href="/" target="_blank" rel="noreferrer">打开星图</a>
           <button class="button" id="reloadButton" type="button">重新读取</button>
+          <button class="button" id="loginButton" type="button">登录解锁</button>
+          <button class="button button-danger" id="logoutButton" type="button" disabled>退出登录</button>
           <button class="button button-primary" id="saveAllButton" type="button">保存到云端</button>
         </div>
       </header>
@@ -312,7 +314,7 @@
           <button class="tab" id="linksTab" type="button">关系</button>
         </div>
         <div class="toolbar">
-          <input id="adminTokenInput" type="password" placeholder="admin_token" autocomplete="current-password" />
+          <input id="adminTokenInput" type="password" placeholder="admin_token（仅用于登录）" autocomplete="new-password" />
           <input id="searchInput" type="search" placeholder="搜索名称、id、摘要或关系" />
           <button class="button" id="newButton" type="button">新增</button>
           <button class="button" id="exportButton" type="button">导出 JSON</button>
