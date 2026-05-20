@@ -309,7 +309,7 @@ function SceneContent({ globeGraph, countryCatalog, hoveredId, selectedId, focus
     if (!selectedNode) return null;
     const localPosition = latLonToVector3(selectedNode.coordinates.lat, selectedNode.coordinates.lon, 1);
     const worldPosition = localPosition.clone().applyQuaternion(baseQuaternion);
-    const alignQuaternion = new THREE.Quaternion().setFromUnitVectors(worldPosition.normalize(), new THREE.Vector3(0, 0, 1));
+    const alignQuaternion = new THREE.Quaternion().setFromUnitVectors(worldPosition.normalize(), new THREE.Vector3(0, 0, -1));
     return alignQuaternion.multiply(baseQuaternion);
   }, [baseQuaternion, selectedNode]);
 

@@ -1,41 +1,11 @@
 import { findCountryForNode } from './countryCatalog.js';
 
-const GLOBE_ACTOR_TYPES = new Set(['country', 'organization']);
+const GLOBE_ACTOR_TYPES = new Set(['country']);
 export const globeEventTypes = ['conflict', 'diplomacy', 'economy', 'sanction'];
 const EVENT_TYPES = new Set(globeEventTypes);
 
-export const organizationProfiles = {
-  eu: { coordinates: { lat: 50.85, lon: 4.35 }, aliases: ['European Union', 'EU'] },
-  un: { coordinates: { lat: 40.75, lon: -73.97 }, aliases: ['United Nations', 'UN'] },
-  nato: { coordinates: { lat: 50.88, lon: 4.42 }, aliases: ['NATO', 'North Atlantic Treaty Organization'] },
-  g20: { coordinates: { lat: 28.61, lon: 77.2 }, aliases: ['G20'] },
-  asean: { coordinates: { lat: -6.21, lon: 106.85 }, aliases: ['ASEAN'] },
-  brics: { coordinates: { lat: -25.75, lon: 28.23 }, aliases: ['BRICS'] },
-  who: { coordinates: { lat: 46.23, lon: 6.14 }, aliases: ['World Health Organization', 'WHO'] },
-  wto: { coordinates: { lat: 46.22, lon: 6.14 }, aliases: ['World Trade Organization', 'WTO'] },
-  african_union: { coordinates: { lat: 9.03, lon: 38.74 }, aliases: ['African Union', 'AU'] },
-};
-
-export const globeCoordinates = Object.fromEntries(
-  Object.entries(organizationProfiles).map(([id, profile]) => [id, profile.coordinates]),
-);
-
+export const globeCoordinates = {};
 export const countryFeatureNames = {};
-
-function normalizeLookupValue(value) {
-  return String(value || '').trim().toLowerCase().replace(/[\s_-]+/g, '');
-}
-
-function findOrganizationProfile(nodeOrId) {
-  const id = typeof nodeOrId === 'string' ? nodeOrId : nodeOrId?.id;
-  const name = typeof nodeOrId === 'string' ? '' : nodeOrId?.name;
-  const candidates = [id, name].map(normalizeLookupValue).filter(Boolean);
-
-  return Object.entries(organizationProfiles).find(([profileId, profile]) => {
-    const aliases = [profileId, ...profile.aliases].map(normalizeLookupValue);
-    return candidates.some((candidate) => aliases.includes(candidate));
-  }) || null;
-}
 
 function getGlobeProfile(node, countryLookup) {
   if (node?.type === 'country') {
@@ -48,15 +18,7 @@ function getGlobeProfile(node, countryLookup) {
     };
   }
 
-  const organization = findOrganizationProfile(node);
-  if (!organization) return null;
-
-  const [organizationId, profile] = organization;
-  return {
-    globeCountryId: organizationId,
-    coordinates: profile.coordinates,
-    organizationId,
-  };
+  return null;
 }
 
 function dedupe(ids) {
