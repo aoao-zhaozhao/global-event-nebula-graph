@@ -283,7 +283,7 @@ function SelectableCountries({ countries, features, hoveredId, selectedId, onHov
   return (
     <group>
       {countries.map((node) => {
-        const mesh = countryMeshes.get(node.id);
+        const mesh = countryMeshes.get(node.globeCountryId || node.id);
         if (!mesh) return null;
         const color = nodeLineColors[node.id] || '#61dfff';
         const active = hoveredId === node.id || selectedId === node.id;
