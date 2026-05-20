@@ -32,6 +32,7 @@ export default function Hud({
   nodeSizeMultiplier,
   onNodeSizeChange,
   globeFilters,
+  countryCatalog,
   onGlobeFiltersChange,
   onGlobeFocus,
 }) {
@@ -136,6 +137,9 @@ export default function Hud({
             <datalist id="country-options">
               {graph.nodes.map((node) => (
                 <option key={node.id} value={node.name} />
+              ))}
+              {countryCatalog?.map((country) => (
+                <option key={`catalog-${country.id}`} value={country.displayName} />
               ))}
             </datalist>
             <button type="submit">定位</button>

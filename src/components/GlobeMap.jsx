@@ -1,10 +1,9 @@
 import { Html, Line, OrbitControls, Stars } from '@react-three/drei';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
-import { Suspense, memo, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, memo, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { nodeLineColors, typeColors } from '../data/events.js';
-import { countryFeatureNames, createGlobeGraph } from '../utils/globeData.js';
 
 const RADIUS = 4.2;
 const SURFACE_OFFSET = 1.018;
@@ -42,22 +41,6 @@ function getPolygonGroups(geometry) {
   return [];
 }
 
-function normalizeFeatureName(feature) {
-  return [
-    feature.properties?.ADMIN,
-    feature.properties?.NAME,
-    feature.properties?.NAME_LONG,
-    feature.properties?.NAME_EN,
-  ].filter(Boolean);
-}
-
-function getCountryIdForFeature(feature) {
-  const names = normalizeFeatureName(feature);
-  return Object.entries(countryFeatureNames).find(([, aliases]) =>
-    aliases.some((alias) => names.includes(alias)),
-  )?.[0];
-}
-
 function buildBorderGeometry(features) {
   const positions = [];
 
@@ -81,16 +64,13 @@ function buildBorderGeometry(features) {
   return geometry;
 }
 
-function buildCountryMeshes(features) {
+function buildCountryMeshes(countryCatalog) {
   const meshes = new Map();
 
-  features.forEach((feature) => {
-    const countryId = getCountryIdForFeature(feature);
-    if (!countryId) return;
-
+  countryCatalog.forEach((country) => {
     const linePoints = [];
 
-    getPolygonGroups(feature.geometry).forEach((polygon) => {
+    getPolygonGroups(country.feature.geometry).forEach((polygon) => {
       const exterior = polygon[0];
       if (!exterior || exterior.length < 4) return;
 
@@ -105,43 +85,17 @@ function buildCountryMeshes(features) {
 
     if (!linePoints.length) return;
 
-    const existing = meshes.get(countryId);
+    const existing = meshes.get(country.id);
     if (existing) {
-      meshes.set(countryId, {
+      meshes.set(country.id, {
         linePoints: [...existing.linePoints, ...linePoints],
       });
       return;
     }
-    meshes.set(countryId, { linePoints });
+    meshes.set(country.id, { linePoints });
   });
 
   return meshes;
-}
-
-function useCountryFeatures() {
-  const [features, setFeatures] = useState([]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    fetch('/assets/geo/countries-110m.geojson')
-      .then((response) => {
-        if (!response.ok) throw new Error(`GeoJSON ${response.status}`);
-        return response.json();
-      })
-      .then((geojson) => {
-        if (!cancelled) setFeatures(geojson.features || []);
-      })
-      .catch(() => {
-        if (!cancelled) setFeatures([]);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return features;
 }
 
 function createAtmosphereTexture() {
@@ -267,7 +221,8 @@ function GlobeArcs({ links, nodeMap, hoveredId, selectedId }) {
   );
 }
 
-function CountryBorders({ features }) {
+function CountryBorders({ countryCatalog }) {
+  const features = useMemo(() => countryCatalog.map((country) => country.feature), [countryCatalog]);
   const geometry = useMemo(() => buildBorderGeometry(features), [features]);
 
   return (
@@ -277,8 +232,8 @@ function CountryBorders({ features }) {
   );
 }
 
-function SelectableCountries({ countries, features, hoveredId, selectedId, onHover, onSelect }) {
-  const countryMeshes = useMemo(() => buildCountryMeshes(features), [features]);
+function SelectableCountries({ countries, countryCatalog, hoveredId, selectedId, onHover, onSelect }) {
+  const countryMeshes = useMemo(() => buildCountryMeshes(countryCatalog), [countryCatalog]);
 
   return (
     <group>
@@ -345,9 +300,8 @@ function GlobeMarker({ node, selected, hovered }) {
 
 const MemoGlobeMarker = memo(GlobeMarker);
 
-function SceneContent({ globeGraph, hoveredId, selectedId, focusId, onHoverNode, onSelectNode }) {
+function SceneContent({ globeGraph, countryCatalog, hoveredId, selectedId, focusId, onHoverNode, onSelectNode }) {
   const globeRef = useRef();
-  const features = useCountryFeatures();
   const nodeMap = useMemo(() => new Map(globeGraph.nodes.map((node) => [node.id, node])), [globeGraph.nodes]);
   const selectedNode = focusId ? nodeMap.get(focusId) || null : selectedId ? nodeMap.get(selectedId) : null;
   const baseQuaternion = useMemo(() => new THREE.Quaternion().setFromEuler(new THREE.Euler(0.05, -0.72, 0)), []);
@@ -381,10 +335,10 @@ function SceneContent({ globeGraph, hoveredId, selectedId, focusId, onHoverNode,
       <Stars radius={82} depth={36} count={1500} factor={3.4} saturation={0.8} fade speed={0.35} />
       <group ref={globeRef} rotation={[0.05, -0.72, 0]}>
         <GlobeBody />
-        <CountryBorders features={features} />
+        <CountryBorders countryCatalog={countryCatalog} />
         <SelectableCountries
           countries={globeGraph.nodes}
-          features={features}
+          countryCatalog={countryCatalog}
           hoveredId={hoveredId}
           selectedId={selectedId}
           onHover={onHoverNode}
@@ -419,9 +373,7 @@ function SceneContent({ globeGraph, hoveredId, selectedId, focusId, onHoverNode,
   );
 }
 
-export default function GlobeMap({ data, filters, hoveredId, selectedId, focusId, onHoverNode, onSelectNode }) {
-  const globeGraph = useMemo(() => createGlobeGraph(data, filters), [data, filters]);
-
+export default function GlobeMap({ globeGraph, countryCatalog, hoveredId, selectedId, focusId, onHoverNode, onSelectNode }) {
   return (
     <Canvas
       camera={{ position: [0, 0.4, 10.8], fov: 48, near: 0.1, far: 160 }}
@@ -436,6 +388,7 @@ export default function GlobeMap({ data, filters, hoveredId, selectedId, focusId
       <Suspense fallback={null}>
         <SceneContent
           globeGraph={globeGraph}
+          countryCatalog={countryCatalog}
           hoveredId={hoveredId}
           selectedId={selectedId}
           focusId={focusId}

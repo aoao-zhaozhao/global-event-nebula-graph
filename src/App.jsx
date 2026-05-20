@@ -4,6 +4,7 @@ import GlobeMap from './components/GlobeMap.jsx';
 import Hud from './components/Hud.jsx';
 import { defaultGraphData } from './data/defaultGraph.js';
 import { loadGraphData } from './services/graphData.js';
+import { createCountryLookup, loadCountryCatalog } from './utils/countryCatalog.js';
 import { createGraphLayers } from './utils/graphLayers.js';
 import { createGlobeGraph } from './utils/globeData.js';
 
@@ -17,8 +18,10 @@ export default function App() {
   const [focusCoreToken, setFocusCoreToken] = useState(0);
   const [globeFilters, setGlobeFilters] = useState({ year: 'all', type: 'all' });
   const [globeFocusId, setGlobeFocusId] = useState(null);
+  const [countryCatalog, setCountryCatalog] = useState([]);
   const graphLayers = useMemo(() => createGraphLayers(graphData), [graphData]);
-  const globeGraph = useMemo(() => createGlobeGraph(graphData, globeFilters), [graphData, globeFilters]);
+  const countryLookup = useMemo(() => createCountryLookup(countryCatalog), [countryCatalog]);
+  const globeGraph = useMemo(() => createGlobeGraph(graphData, globeFilters, countryLookup), [graphData, globeFilters, countryLookup]);
   const graph = useMemo(() => (activeLayer === 'events' ? graphLayers.events : globeGraph), [activeLayer, globeGraph, graphLayers]);
 
   useEffect(() => {
@@ -32,6 +35,25 @@ export default function App() {
     }
 
     loadData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCountries() {
+      try {
+        const catalog = await loadCountryCatalog();
+        if (!cancelled) setCountryCatalog(catalog);
+      } catch {
+        if (!cancelled) setCountryCatalog([]);
+      }
+    }
+
+    loadCountries();
 
     return () => {
       cancelled = true;
@@ -63,16 +85,16 @@ export default function App() {
 
   return (
     <main className="app-shell">
-        <div className="canvas-layer">
+      <div className="canvas-layer">
         {activeLayer === 'globe' ? (
           <GlobeMap
-            data={graphData}
-            filters={globeFilters}
-              hoveredId={hoveredId}
-              selectedId={selectedId}
-              focusId={globeFocusId}
-              onHoverNode={setHoveredId}
-              onSelectNode={handleSelectNode}
+            globeGraph={globeGraph}
+            countryCatalog={countryCatalog}
+            hoveredId={hoveredId}
+            selectedId={selectedId}
+            focusId={globeFocusId}
+            onHoverNode={setHoveredId}
+            onSelectNode={handleSelectNode}
           />
         ) : (
           <EventStarMap
@@ -100,6 +122,7 @@ export default function App() {
         nodeSizeMultiplier={nodeSizeMultiplier}
         onNodeSizeChange={setNodeSizeMultiplier}
         globeFilters={globeFilters}
+        countryCatalog={countryCatalog}
         onGlobeFiltersChange={setGlobeFilters}
         onGlobeFocus={handleGlobeFocus}
       />

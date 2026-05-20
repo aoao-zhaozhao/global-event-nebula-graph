@@ -1,10 +1,13 @@
 import { defaultGraphData } from './data/defaultGraph.js';
+import { createCountryLookup, loadCountryCatalog } from './utils/countryCatalog.js';
 
 const state = {
   data: null,
   activeTab: 'nodes',
   selectedNodeId: null,
   selectedLinkIndex: null,
+  countryCatalog: [],
+  countryLookup: new Map(),
   authed: false,
   loadingAuth: true,
   saving: false,
@@ -146,6 +149,15 @@ function syncSelectors() {
   linkFields.target.innerHTML = nodeOptions;
 }
 
+function syncCountryOptions() {
+  const datalist = $('adminCountryOptions');
+  if (!datalist) return;
+
+  datalist.innerHTML = state.countryCatalog
+    .map((country) => `<option value="${country.displayName}" label="${country.englishName || country.isoA3}"></option>`)
+    .join('');
+}
+
 function matchesSearch(text) {
   const keyword = $('searchInput').value.trim().toLowerCase();
   return !keyword || text.toLowerCase().includes(keyword);
@@ -257,6 +269,8 @@ function switchTab(tab) {
 }
 
 function collectNodeForm() {
+  applyCountrySuggestion();
+
   return {
     id: nodeFields.id.value.trim(),
     type: nodeFields.type.value,
@@ -265,6 +279,31 @@ function collectNodeForm() {
     year: nodeFields.year.value.trim(),
     summary: nodeFields.summary.value.trim(),
   };
+}
+
+function toNodeId(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+function applyCountrySuggestion() {
+  if (nodeFields.type.value !== 'country') return;
+
+  const country = state.countryLookup.get(
+    String(nodeFields.name.value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[\s_.-]+/g, ''),
+  );
+
+  if (!country) return;
+
+  nodeFields.name.value = country.displayName;
+  if (!state.selectedNodeId) {
+    nodeFields.id.value = toNodeId(country.isoA3 || country.englishName || country.displayName);
+  }
 }
 
 function collectLinkForm() {
@@ -323,6 +362,12 @@ $('adminTokenInput').addEventListener('keydown', (event) => {
     event.preventDefault();
     login();
   }
+});
+
+nodeFields.name.addEventListener('change', applyCountrySuggestion);
+
+nodeFields.type.addEventListener('change', () => {
+  if (nodeFields.type.value === 'country') applyCountrySuggestion();
 });
 
 $('newButton').addEventListener('click', () => {
@@ -478,6 +523,14 @@ $('importButton').addEventListener('click', () => {
 
 async function init() {
   updateAuthUi();
+  try {
+    state.countryCatalog = await loadCountryCatalog();
+    state.countryLookup = createCountryLookup(state.countryCatalog);
+    syncCountryOptions();
+  } catch {
+    state.countryCatalog = [];
+    state.countryLookup = new Map();
+  }
   await Promise.all([loadData(), refreshSession()]);
 }
 
