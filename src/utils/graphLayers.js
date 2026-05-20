@@ -122,6 +122,6 @@ export function createGraphLayers(data) {
 export const graphLayers = createGraphLayers({ nodes: defaultNodes, links: defaultLinks });
 
 export const layerOptions = [
-  { id: 'actors', label: '国家/组织层', shortLabel: '国家' },
+  { id: 'globe', label: '地球预览', shortLabel: '地球' },
   { id: 'events', label: '事件层', shortLabel: '事件' },
 ];

@@ -1,6 +1,7 @@
-import { Crosshair, Maximize2, RadioTower, X } from 'lucide-react';
+import { Crosshair, Maximize2, RadioTower, Search, X } from 'lucide-react';
 import { typeColors, typeLabels } from '../data/events.js';
 import { layerOptions } from '../utils/graphLayers.js';
+import { globeEventTypes } from '../utils/globeData.js';
 
 function getRelated(selectedId, graph, nodeMap) {
   if (!selectedId) return [];
@@ -30,6 +31,9 @@ export default function Hud({
   onSelectNode,
   nodeSizeMultiplier,
   onNodeSizeChange,
+  globeFilters,
+  onGlobeFiltersChange,
+  onGlobeFocus,
 }) {
   const nodeMap = new Map(graph.nodes.map((node) => [node.id, node]));
   const selectedNode = selectedId ? nodeMap.get(selectedId) : null;
@@ -37,6 +41,20 @@ export default function Hud({
   const activeNode = selectedNode || hoveredNode;
   const related = getRelated(selectedId, graph, nodeMap);
   const visibleTypes = [...new Set(graph.nodes.map((node) => node.type))];
+  const years = ['all', ...new Set(graph.links.flatMap((link) => String(link.year || '').match(/20\d{2}/g) || []))].sort((a, b) => {
+    if (a === 'all') return -1;
+    if (b === 'all') return 1;
+    return Number(a) - Number(b);
+  });
+
+  const handleSearch = (event) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const query = String(formData.get('country-search') || '').trim().toLowerCase();
+    if (!query) return;
+    const hit = graph.nodes.find((node) => node.name.toLowerCase().includes(query) || node.id.toLowerCase().includes(query));
+    if (hit && onGlobeFocus) onGlobeFocus(hit.id);
+  };
 
   return (
     <>
@@ -47,7 +65,7 @@ export default function Hud({
         </div>
         <button className="focus-button" type="button" onClick={onFocusCore}>
           <Crosshair size={17} />
-          聚焦核心事件
+          {activeLayer === 'globe' ? '回到地球视角' : '聚焦核心事件'}
         </button>
       </header>
 
@@ -110,36 +128,94 @@ export default function Hud({
         )}
       </div>
 
-      <footer className="legend-bar">
-        <div className="legend-heading">{activeLayer === 'actors' ? '行为体' : '事件层'}</div>
-        {visibleTypes.map((type) => (
-          <div className="legend-item" key={type}>
-            <span style={{ background: typeColors[type], boxShadow: `0 0 18px ${typeColors[type]}` }} />
-            {typeLabels[type]}
+      {activeLayer === 'globe' ? (
+        <footer className="globe-controls">
+          <form className="globe-search" onSubmit={handleSearch}>
+            <Search size={16} />
+            <input name="country-search" type="search" placeholder="搜索国家" list="country-options" autoComplete="off" />
+            <datalist id="country-options">
+              {graph.nodes.map((node) => (
+                <option key={node.id} value={node.name} />
+              ))}
+            </datalist>
+            <button type="submit">定位</button>
+          </form>
+          <div className="filter-field">
+            <span className="filter-label">年份</span>
+            <select
+              value={globeFilters?.year || 'all'}
+              onChange={(event) => onGlobeFiltersChange((filters) => ({ ...filters, year: event.target.value }))}
+            >
+              {years.map((year) => (
+                <option key={year} value={year}>
+                  {year === 'all' ? '全部年份' : year}
+                </option>
+              ))}
+            </select>
           </div>
-        ))}
-        <div className="legend-spacer" />
-        <div className={dataState?.source === 'cloud' ? 'data-state data-state-cloud' : 'data-state'}>
-          {dataState?.loading ? '数据加载中' : dataState?.source === 'cloud' ? '云端数据' : '默认数据'}
-        </div>
-        <div className="size-control">
-          <label htmlFor="node-size-control">节点大小</label>
-          <input
-            id="node-size-control"
-            type="range"
-            min="0.45"
-            max="2.4"
-            step="0.05"
-            value={nodeSizeMultiplier}
-            onChange={(event) => onNodeSizeChange(Number(event.target.value))}
-          />
-          <span>{`${nodeSizeMultiplier.toFixed(2)}x`}</span>
-        </div>
-        <div className="hint">
-          <Maximize2 size={14} />
-          拖拽旋转 · 滚轮缩放 · 点击节点
-        </div>
-      </footer>
+          <div className="filter-field">
+            <span className="filter-label">事件类型</span>
+            <select
+              value={globeFilters?.type || 'all'}
+              onChange={(event) => onGlobeFiltersChange((filters) => ({ ...filters, type: event.target.value }))}
+            >
+              <option value="all">全部类型</option>
+              {globeEventTypes.map((type) => (
+                <option key={type} value={type}>
+                  {typeLabels[type]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="filter-actions">
+            <button className="filter-reset" type="button" onClick={() => onGlobeFiltersChange({ year: 'all', type: 'all' })}>
+              重置
+            </button>
+            <button className="filter-reset" type="button" onClick={() => onGlobeFocus(null)}>
+              复位国家
+            </button>
+          </div>
+          <div className="legend-spacer" />
+          <div className={dataState?.source === 'cloud' ? 'data-state data-state-cloud' : 'data-state'}>
+            {dataState?.loading ? '数据加载中' : dataState?.source === 'cloud' ? '云端数据' : '默认数据'}
+          </div>
+          <div className="hint">
+            <Maximize2 size={14} />
+            拖拽旋转地球 · 点击国家
+          </div>
+        </footer>
+      ) : (
+        <footer className="legend-bar">
+          <div className="legend-heading">事件层</div>
+          {visibleTypes.map((type) => (
+            <div className="legend-item" key={type}>
+              <span style={{ background: typeColors[type], boxShadow: `0 0 18px ${typeColors[type]}` }} />
+              {typeLabels[type]}
+            </div>
+          ))}
+          <div className="legend-spacer" />
+          <div className={dataState?.source === 'cloud' ? 'data-state data-state-cloud' : 'data-state'}>
+            {dataState?.loading ? '数据加载中' : dataState?.source === 'cloud' ? '云端数据' : '默认数据'}
+          </div>
+          <div className="size-control">
+            <label htmlFor="node-size-control">节点大小</label>
+            <input
+              id="node-size-control"
+              type="range"
+              min="0.45"
+              max="2.4"
+              step="0.05"
+              value={nodeSizeMultiplier}
+              onChange={(event) => onNodeSizeChange(Number(event.target.value))}
+            />
+            <span>{`${nodeSizeMultiplier.toFixed(2)}x`}</span>
+          </div>
+          <div className="hint">
+            <Maximize2 size={14} />
+            拖拽旋转 · 滚轮缩放 · 点击节点
+          </div>
+        </footer>
+      )}
     </>
   );
 }

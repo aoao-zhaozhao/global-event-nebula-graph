@@ -400,6 +400,113 @@ button {
   z-index: 5;
 }
 
+.globe-controls {
+  pointer-events: auto;
+  position: absolute;
+  left: 28px;
+  right: 28px;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 82px;
+  padding: 14px 20px 15px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.84)),
+    rgba(0, 0, 0, 0.68);
+  box-shadow:
+    0 -18px 50px rgba(0, 0, 0, 0.48),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(16px);
+  z-index: 5;
+}
+
+.globe-search {
+  display: grid;
+  grid-template-columns: auto minmax(190px, 280px) auto;
+  align-items: center;
+  gap: 9px;
+  min-height: 38px;
+  padding: 0 8px 0 12px;
+  border: 1px solid rgba(126, 214, 255, 0.22);
+  border-radius: 4px;
+  color: rgba(232, 246, 255, 0.78);
+  background: rgba(4, 15, 28, 0.58);
+  font-family: "STKaiti", "KaiTi", "KaiTi_GB2312", "Songti SC", serif;
+}
+
+.globe-search input,
+.filter-field select {
+  height: 30px;
+  border: 0;
+  color: #edf8ff;
+  background: transparent;
+  outline: none;
+  font: inherit;
+}
+
+.globe-search input::placeholder {
+  color: rgba(224, 242, 255, 0.42);
+}
+
+.globe-search button,
+.filter-reset {
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 209, 102, 0.28);
+  border-radius: 4px;
+  color: rgba(255, 238, 188, 0.9);
+  background: rgba(255, 209, 102, 0.07);
+  cursor: pointer;
+}
+
+.filter-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid rgba(126, 214, 255, 0.16);
+  border-radius: 4px;
+  color: rgba(232, 246, 255, 0.68);
+  background: rgba(255, 255, 255, 0.026);
+  font-size: 12px;
+  font-family: "STKaiti", "KaiTi", "KaiTi_GB2312", "Songti SC", serif;
+  white-space: nowrap;
+}
+
+.filter-label {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.filter-field select {
+  min-width: 112px;
+  color: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+}
+
+.filter-field option {
+  color: #102033;
+}
+
+.filter-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.globe-controls .data-state,
+.globe-controls .hint,
+.globe-controls .filter-reset {
+  font-family: "STKaiti", "KaiTi", "KaiTi_GB2312", "Songti SC", serif;
+}
+
+.globe-controls .data-state {
+  padding: 0 12px;
+}
+
 .legend-heading {
   width: 62px;
   flex: 0 0 auto;
@@ -565,6 +672,24 @@ button {
     right: 12px;
     bottom: 12px;
     overflow-x: auto;
+  }
+
+  .globe-controls {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    flex-wrap: wrap;
+    gap: 10px;
+    overflow-x: auto;
+  }
+
+  .globe-search {
+    grid-template-columns: auto minmax(150px, 1fr) auto;
+    width: 100%;
+  }
+
+  .filter-field {
+    min-width: 0;
   }
 
   .hint {
