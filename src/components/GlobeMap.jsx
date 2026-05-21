@@ -198,14 +198,15 @@ function GlobeArcs({ links, nodeMap, hoveredId, selectedId }) {
     <group>
       {arcs.map((link) => {
         const active = activeId && (link.source === activeId || link.target === activeId);
+        const direct = link.origin === 'direct';
         const color = active ? nodeLineColors[activeId] || '#fff0a8' : typeColors[link.type] || '#b47cff';
-        const opacity = active ? 0.86 : activeId ? 0.04 : 0.23;
+        const opacity = active ? 0.86 : activeId ? 0.04 : direct ? 0.28 : 0.16;
         return (
           <group key={link.id}>
             <Line
               points={link.points}
               color={color}
-              lineWidth={active ? 2.2 + link.strength : 0.48 + link.strength * 0.55}
+              lineWidth={active ? 2.2 + link.strength : (direct ? 0.56 : 0.42) + link.strength * (direct ? 0.55 : 0.38)}
               transparent
               opacity={opacity}
               depthWrite={false}

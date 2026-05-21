@@ -279,6 +279,39 @@ button {
   line-height: 1.78;
 }
 
+.source-block {
+  margin-top: 20px;
+}
+
+.source-block h3 {
+  margin: 0 0 11px;
+  color: rgba(234, 249, 255, 0.76);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.source-list {
+  display: grid;
+  gap: 8px;
+}
+
+.source-link {
+  display: inline-flex;
+  align-items: flex-start;
+  width: fit-content;
+  max-width: 100%;
+  color: #aee2ff;
+  font-size: 12px;
+  line-height: 1.5;
+  text-decoration: none;
+  word-break: break-word;
+}
+
+.source-link:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
 .related-block {
   margin-top: 24px;
 }

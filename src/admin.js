@@ -435,7 +435,7 @@ $('nodeForm').addEventListener('submit', (event) => {
     if (state.selectedNodeId) {
       const oldId = state.selectedNodeId;
       const index = state.data.nodes.findIndex((item) => item.id === oldId);
-      state.data.nodes[index] = node;
+      state.data.nodes[index] = { ...state.data.nodes[index], ...node };
       state.data.links = state.data.links.map((link) => ({
         ...link,
         source: link.source === oldId ? node.id : link.source,
@@ -460,7 +460,7 @@ $('linkForm').addEventListener('submit', (event) => {
     validateLink(link);
 
     if (state.selectedLinkIndex !== null) {
-      state.data.links[state.selectedLinkIndex] = link;
+      state.data.links[state.selectedLinkIndex] = { ...state.data.links[state.selectedLinkIndex], ...link };
     } else {
       state.data.links.push(link);
       state.selectedLinkIndex = state.data.links.length - 1;

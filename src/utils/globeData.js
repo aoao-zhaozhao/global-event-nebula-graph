@@ -35,7 +35,31 @@ function mergeGlobeLink(linkMap, source, target, eventNode, strength) {
   const [a, b] = [source, target].sort();
   const key = `${a}::${b}::${eventNode.id}`;
   const existing = linkMap.get(key);
+  const origin = eventNode.origin || 'derived';
   const nextStrength = Math.max(existing?.strength || 0, strength);
+
+  if (existing) {
+    const existingOrigin = existing.origin || 'derived';
+    if (existingOrigin === 'direct' && origin !== 'direct') return;
+    if (origin === 'direct' && existingOrigin !== 'direct') {
+      linkMap.set(key, {
+        ...existing,
+        id: key,
+        source: a,
+        target: b,
+        eventId: eventNode.id,
+        relation: eventNode.name,
+        type: eventNode.type,
+        strength: nextStrength,
+        importance: eventNode.importance,
+        year: eventNode.year,
+        origin: 'direct',
+        derived: false,
+      });
+      return;
+    }
+    if (strength <= existing.strength) return;
+  }
 
   linkMap.set(key, {
     id: key,
@@ -47,11 +71,45 @@ function mergeGlobeLink(linkMap, source, target, eventNode, strength) {
     strength: nextStrength,
     importance: eventNode.importance,
     year: eventNode.year,
+    origin,
+    derived: origin !== 'direct',
   });
+}
+
+function parseYearRange(value) {
+  const text = String(value || '').trim();
+  if (!text) return null;
+
+  const exactDate = text.match(/^(\d{4})-\d{2}-\d{2}$/);
+  if (exactDate) {
+    const year = Number(exactDate[1]);
+    return { start: year, end: year };
+  }
+
+  const singleYear = text.match(/^(\d{4})$/);
+  if (singleYear) {
+    const year = Number(singleYear[1]);
+    return { start: year, end: year };
+  }
+
+  const range = text.match(/^(\d{4})\s*-\s*(\d{4})$/);
+  if (range) {
+    return { start: Number(range[1]), end: Number(range[2]) };
+  }
+
+  return null;
 }
 
 function yearMatches(eventYear, filterYear) {
   if (!filterYear || filterYear === 'all') return true;
+  const year = Number(filterYear);
+  if (!Number.isFinite(year)) return true;
+
+  const range = parseYearRange(eventYear);
+  if (range) {
+    return year >= Math.min(range.start, range.end) && year <= Math.max(range.start, range.end);
+  }
+
   return String(eventYear || '').includes(String(filterYear));
 }
 
@@ -118,6 +176,7 @@ export function createGlobeGraph(data, filters = {}, countryLookup = null) {
           type: target.type === 'organization' || source.type === 'organization' ? 'diplomacy' : 'economy',
           importance: Math.max(source.importance || 5, target.importance || 5),
           year: source.year || target.year,
+          origin: 'direct',
         },
         link.strength,
       );
@@ -126,6 +185,8 @@ export function createGlobeGraph(data, filters = {}, countryLookup = null) {
 
   return {
     nodes: actors,
-    links: [...linkMap.values()].sort((a, b) => b.importance - a.importance || b.strength - a.strength).slice(0, 96),
+    links: [...linkMap.values()]
+      .sort((a, b) => Number((b.origin || 'derived') === 'direct') - Number((a.origin || 'derived') === 'direct') || b.importance - a.importance || b.strength - a.strength)
+      .slice(0, 96),
   };
 }

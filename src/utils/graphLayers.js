@@ -3,11 +3,28 @@ import { links as defaultLinks, nodes as defaultNodes } from '../data/events.js'
 const ACTOR_TYPES = new Set(['country', 'organization']);
 const EVENT_TYPES = new Set(['conflict', 'diplomacy', 'economy', 'sanction']);
 
-function mergeLink(linkMap, source, target, relation, strength) {
+function mergeLink(linkMap, source, target, relation, strength, origin = 'direct') {
   if (source === target) return;
   const [a, b] = [source, target].sort();
   const key = `${a}::${b}`;
   const existing = linkMap.get(key);
+
+  if (existing) {
+    const existingOrigin = existing.origin || (existing.derived ? 'derived' : 'direct');
+    if (existingOrigin === 'direct' && origin !== 'direct') return;
+    if (origin === 'direct' && existingOrigin !== 'direct') {
+      linkMap.set(key, {
+        ...existing,
+        source: a,
+        target: b,
+        relation,
+        strength: Math.max(existing.strength, strength),
+        origin: 'direct',
+        derived: false,
+      });
+      return;
+    }
+  }
 
   if (!existing || strength > existing.strength) {
     linkMap.set(key, {
@@ -15,6 +32,8 @@ function mergeLink(linkMap, source, target, relation, strength) {
       target: b,
       relation,
       strength,
+      origin,
+      derived: origin !== 'direct',
     });
   }
 }
@@ -30,7 +49,7 @@ function createActorGraph(nodes, links) {
 
   links.forEach((link) => {
     if (actorIds.has(link.source) && actorIds.has(link.target)) {
-      mergeLink(linkMap, link.source, link.target, link.relation, link.strength);
+      mergeLink(linkMap, link.source, link.target, link.relation, link.strength, 'direct');
     }
   });
 
@@ -50,13 +69,14 @@ function createActorGraph(nodes, links) {
             participants[j],
             eventNode.name,
             Math.min(0.95, 0.38 + eventNode.importance / 18),
+            'derived',
           );
         }
       }
     });
 
   const actorLinks = [...linkMap.values()]
-    .sort((a, b) => b.strength - a.strength)
+    .sort((a, b) => Number((b.origin || 'derived') === 'direct') - Number((a.origin || 'derived') === 'direct') || b.strength - a.strength)
     .slice(0, 72);
 
   return {
@@ -73,7 +93,7 @@ function createEventGraph(nodes, links) {
 
   links.forEach((link) => {
     if (eventIds.has(link.source) && eventIds.has(link.target)) {
-      mergeLink(linkMap, link.source, link.target, link.relation, link.strength);
+      mergeLink(linkMap, link.source, link.target, link.relation, link.strength, 'direct');
     }
   });
 
@@ -94,13 +114,13 @@ function createEventGraph(nodes, links) {
             0.3 + actorNode.importance / 22 + (sourceEvent.importance + targetEvent.importance) / 52,
           );
 
-          mergeLink(linkMap, actorEvents[i], actorEvents[j], actorNode.name, strength);
+          mergeLink(linkMap, actorEvents[i], actorEvents[j], actorNode.name, strength, 'derived');
         }
       }
     });
 
   const eventLinks = [...linkMap.values()]
-    .sort((a, b) => b.strength - a.strength)
+    .sort((a, b) => Number((b.origin || 'derived') === 'direct') - Number((a.origin || 'derived') === 'direct') || b.strength - a.strength)
     .slice(0, 78);
 
   return {

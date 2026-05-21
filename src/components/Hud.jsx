@@ -40,6 +40,30 @@ function buildCountrySearchOptions(graph, countryCatalog, countryLookup) {
   return options;
 }
 
+function expandYearTokens(value) {
+  const text = String(value || '').trim();
+  if (!text) return [];
+
+  const exactDate = text.match(/^(\d{4})-\d{2}-\d{2}$/);
+  if (exactDate) return [exactDate[1]];
+
+  const singleYear = text.match(/^(\d{4})$/);
+  if (singleYear) return [singleYear[1]];
+
+  const range = text.match(/^(\d{4})\s*-\s*(\d{4})$/);
+  if (range) {
+    const start = Number(range[1]);
+    const end = Number(range[2]);
+    const years = [];
+    for (let year = Math.min(start, end); year <= Math.max(start, end); year += 1) {
+      years.push(String(year));
+    }
+    return years;
+  }
+
+  return [...new Set(text.match(/20\d{2}/g) || [])];
+}
+
 function getRelated(selectedId, graph, nodeMap) {
   if (!selectedId) return [];
 
@@ -83,8 +107,9 @@ export default function Hud({
   const hoveredNode = hoveredId ? nodeMap.get(hoveredId) : null;
   const activeNode = selectedNode || hoveredNode;
   const related = getRelated(selectedId, graph, nodeMap);
+  const sources = Array.isArray(selectedNode?.sources) ? selectedNode.sources : [];
   const visibleTypes = [...new Set(graph.nodes.map((node) => node.type))];
-  const years = ['all', ...new Set(graph.links.flatMap((link) => String(link.year || '').match(/20\d{2}/g) || []))].sort((a, b) => {
+  const years = ['all', ...new Set(graph.links.flatMap((link) => expandYearTokens(link.year)))].sort((a, b) => {
     if (a === 'all') return -1;
     if (b === 'all') return 1;
     return Number(a) - Number(b);
@@ -156,6 +181,29 @@ export default function Hud({
               <span>重要度 {selectedNode.importance.toFixed(1)}</span>
             </div>
             <p>{selectedNode.summary}</p>
+            {sources.length > 0 && (
+              <div className="source-block">
+                <h3>官方来源</h3>
+                <div className="source-list">
+                  {sources.map((source, index) => {
+                    const href = typeof source === 'string' ? source : source?.url;
+                    const label = typeof source === 'string' ? source : source?.label || source?.url || `来源 ${index + 1}`;
+                    if (!href) return null;
+                    return (
+                      <a
+                        key={`${href}-${index}`}
+                        className="source-link"
+                        href={href}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                      >
+                        {label}
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <div className="related-block">
               <h3>相关节点</h3>
               <div className="related-list">

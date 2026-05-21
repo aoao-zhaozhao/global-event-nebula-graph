@@ -58,6 +58,7 @@ function Connections({ links, nodeMap, layout, hoveredId, selectedId }) {
       {curves.map((link) => {
         const sourceNode = nodeMap.get(link.source);
         const targetNode = nodeMap.get(link.target);
+        const direct = link.origin === 'direct';
         const active = activeId && (link.source === activeId || link.target === activeId);
         const secondary =
           selectedId &&
@@ -69,14 +70,14 @@ function Connections({ links, nodeMap, layout, hoveredId, selectedId }) {
           : secondary
             ? getLineColor(link, selectedId, sourceNode, targetNode, '#b7d7ff')
             : getLineColor(link, null, sourceNode, targetNode, baseColor);
-        const opacity = active ? 0.9 : secondary ? 0.52 : activeId ? 0.045 : 0.15;
+        const opacity = active ? 0.9 : secondary ? 0.52 : activeId ? (direct ? 0.06 : 0.035) : direct ? 0.18 : 0.1;
 
         return (
           <group key={`${link.source}-${link.target}-${link.relation}`}>
             <Line
               points={link.points}
               color={color}
-              lineWidth={active ? 2.2 + link.strength * 1.2 : 0.34 + link.strength * 0.45}
+              lineWidth={active ? 2.2 + link.strength * 1.2 : (direct ? 0.34 : 0.26) + link.strength * (direct ? 0.45 : 0.32)}
               transparent
               opacity={opacity}
               depthWrite={false}
@@ -84,9 +85,9 @@ function Connections({ links, nodeMap, layout, hoveredId, selectedId }) {
             <Line
               points={link.ghostPoints}
               color={nodeLineColors[link.source] || typeColors[sourceNode?.type] || color}
-              lineWidth={active ? 0.75 : 0.22}
+              lineWidth={active ? 0.75 : direct ? 0.22 : 0.16}
               transparent
-              opacity={active ? 0.44 : activeId ? 0.025 : 0.08}
+              opacity={active ? 0.44 : activeId ? 0.02 : direct ? 0.08 : 0.05}
               depthWrite={false}
             />
           </group>
