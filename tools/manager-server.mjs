@@ -12,7 +12,9 @@ const managerRoot = path.join(projectRoot, 'manager');
 const dataFile = path.join(projectRoot, 'src', 'data', 'events.js');
 const backupRoot = path.join(projectRoot, 'backups');
 const managerPort = Number(process.env.MANAGER_PORT || 4174);
-const preferredProjectUrl = 'http://localhost:5173/';
+const configuredProjectPort = Number(process.env.PROJECT_PORT || 5173);
+const projectPort = Number.isFinite(configuredProjectPort) ? configuredProjectPort : 5173;
+const preferredProjectUrl = (process.env.PROJECT_URL || `http://localhost:${projectPort}/`).replace(/\/?$/, '/');
 
 let projectProcess = null;
 let projectUrl = null;
@@ -129,20 +131,28 @@ function normalizeGraphData(data) {
     typeLabels: data.typeLabels,
     typeColors: data.typeColors,
     nodeLineColors: data.nodeLineColors,
-    nodes: data.nodes.map((node) => ({
-      id: String(node.id).trim(),
-      name: String(node.name).trim(),
-      type: String(node.type).trim(),
-      importance: Number(node.importance),
-      year: typeof node.year === 'number' ? node.year : String(node.year).trim(),
-      summary: String(node.summary).trim(),
-    })),
-    links: data.links.map((link) => ({
-      source: String(link.source).trim(),
-      target: String(link.target).trim(),
-      relation: String(link.relation).trim(),
-      strength: Number(link.strength),
-    })),
+    nodes: data.nodes.map((node) => {
+      const { id, name, type, importance, year, summary, ...rest } = node;
+      return {
+        ...rest,
+        id: String(id).trim(),
+        name: String(name).trim(),
+        type: String(type).trim(),
+        importance: Number(importance),
+        year: typeof year === 'number' ? year : String(year).trim(),
+        summary: String(summary).trim(),
+      };
+    }),
+    links: data.links.map((link) => {
+      const { source, target, relation, strength, ...rest } = link;
+      return {
+        ...rest,
+        source: String(source).trim(),
+        target: String(target).trim(),
+        relation: String(relation).trim(),
+        strength: Number(strength),
+      };
+    }),
   };
 }
 
@@ -238,7 +248,7 @@ async function startProject() {
   const viteCli = path.join(projectRoot, 'node_modules', 'vite', 'bin', 'vite.js');
   projectUrl = null;
   try {
-    projectProcess = spawn(process.execPath, [viteCli, '--host', '0.0.0.0', '--port', '5173'], {
+    projectProcess = spawn(process.execPath, [viteCli, '--host', '0.0.0.0', '--port', String(projectPort)], {
       cwd: projectRoot,
       shell: false,
       windowsHide: true,
@@ -259,7 +269,7 @@ async function startProject() {
       .filter(Boolean)
       .forEach((line) => {
         pushLog(line);
-        const match = line.match(/http:\/\/localhost:\d+\/?/i);
+        const match = line.match(/http:\/\/(?:localhost|127\.0\.0\.1):\d+\/?/i);
         if (match) projectUrl = match[0].endsWith('/') ? match[0] : `${match[0]}/`;
       });
   };

@@ -391,7 +391,7 @@
         <div class="actions">
           <button class="button" id="refreshButton" type="button">刷新状态</button>
           <button class="button button-primary" id="startButton" type="button">启动星图</button>
-          <a class="button" id="openProjectButton" href="http://localhost:5173/" target="_blank" rel="noreferrer">打开星图</a>
+          <a class="button" id="openProjectButton" href="#" target="_blank" rel="noreferrer">打开星图</a>
         </div>
       </header>
 
@@ -404,7 +404,7 @@
           <div class="status-stack">
             <div class="status-row">
               <span>项目地址</span>
-              <strong id="projectUrl">http://localhost:5173/</strong>
+              <strong id="projectUrl">-</strong>
             </div>
             <div class="status-row">
               <span>进程 PID</span>
@@ -808,7 +808,7 @@
           if (state.selectedNodeId) {
             const oldId = state.selectedNodeId;
             const index = state.data.nodes.findIndex((item) => item.id === oldId);
-            state.data.nodes[index] = node;
+            state.data.nodes[index] = { ...state.data.nodes[index], ...node };
             state.data.links = state.data.links.map((link) => ({
               ...link,
               source: link.source === oldId ? node.id : link.source,
@@ -833,7 +833,7 @@
           validateLink(link);
 
           if (state.selectedLinkIndex !== null) {
-            state.data.links[state.selectedLinkIndex] = link;
+            state.data.links[state.selectedLinkIndex] = { ...state.data.links[state.selectedLinkIndex], ...link };
           } else {
             state.data.links.push(link);
             state.selectedLinkIndex = state.data.links.length - 1;
