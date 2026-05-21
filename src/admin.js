@@ -288,6 +288,13 @@ function toNodeId(value) {
     .replace(/^_+|_+$/g, '');
 }
 
+function normalizeLookupValue(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_.-]+/g, '');
+}
+
 function applyCountrySuggestion() {
   if (nodeFields.type.value !== 'country') return;
 
@@ -306,6 +313,11 @@ function applyCountrySuggestion() {
   }
 }
 
+function getCountryKey(value) {
+  const country = state.countryLookup.get(normalizeLookupValue(value));
+  return country?.id || null;
+}
+
 function collectLinkForm() {
   return {
     source: linkFields.source.value,
@@ -321,6 +333,24 @@ function validateNode(node) {
   if (!node.summary) throw new Error('节点摘要不能为空');
   if (!Number.isFinite(node.importance) || node.importance < 0 || node.importance > 10) {
     throw new Error('重要度必须在 0 到 10 之间');
+  }
+}
+
+function validateCountryUniqueness(node) {
+  if (node.type !== 'country') return;
+
+  const countryKey = getCountryKey(node.name) || getCountryKey(node.id);
+  if (!countryKey) return;
+
+  const duplicate = state.data.nodes.find(
+    (item) =>
+      item.id !== state.selectedNodeId &&
+      item.type === 'country' &&
+      (getCountryKey(item.name) || getCountryKey(item.id)) === countryKey,
+  );
+
+  if (duplicate) {
+    throw new Error(`国家已存在：${duplicate.name}`);
   }
 }
 
@@ -398,6 +428,7 @@ $('nodeForm').addEventListener('submit', (event) => {
   try {
     const node = collectNodeForm();
     validateNode(node);
+    validateCountryUniqueness(node);
     const duplicate = state.data.nodes.find((item) => item.id === node.id && item.id !== state.selectedNodeId);
     if (duplicate) throw new Error(`节点 ID 已存在：${node.id}`);
 

@@ -1,4 +1,15 @@
 const COUNTRY_GEOJSON_URL = '/assets/geo/countries-110m.geojson';
+const COUNTRY_DISPLAY_OVERRIDES = new Map([
+  ['CHN', '中国'],
+  ['TWN', '台湾'],
+]);
+const COUNTRY_ALIAS_OVERRIDES = new Map([
+  ['CHN', ['台湾', '台灣']],
+]);
+
+function getCountryCode(properties) {
+  return properties.ISO_A3 || properties.ADM0_A3 || '';
+}
 
 function normalizeLookupValue(value) {
   return String(value || '')
@@ -89,6 +100,8 @@ function toNodeId(feature) {
 
 export function getCountryDisplayName(feature) {
   const properties = feature?.properties || {};
+  const override = COUNTRY_DISPLAY_OVERRIDES.get(properties.ISO_A3) || COUNTRY_DISPLAY_OVERRIDES.get(properties.ADM0_A3);
+  if (override) return override;
   return properties.NAME_ZH || properties.NAME_EN || properties.ADMIN || properties.NAME || '';
 }
 
@@ -96,6 +109,7 @@ export function createCountryCatalog(features = []) {
   return features
     .map((feature) => {
       const properties = feature?.properties || {};
+      if (properties.ISO_A3 === 'TWN' || properties.ADM0_A3 === 'TWN') return null;
       const names = getFeatureNames(feature);
       const codes = getFeatureCodes(feature);
       const center = calculateFeatureCenter(feature);
@@ -110,7 +124,13 @@ export function createCountryCatalog(features = []) {
         englishName: properties.NAME_EN || properties.ADMIN || properties.NAME || '',
         isoA2: properties.ISO_A2 && properties.ISO_A2 !== '-99' ? properties.ISO_A2 : '',
         isoA3: properties.ISO_A3 && properties.ISO_A3 !== '-99' ? properties.ISO_A3 : properties.ADM0_A3 || '',
-        aliases: [...new Set([...names, ...codes])],
+        aliases: [
+          ...new Set([
+            ...names,
+            ...codes,
+            ...(COUNTRY_ALIAS_OVERRIDES.get(getCountryCode(properties)) || []),
+          ]),
+        ],
       };
     })
     .filter(Boolean)

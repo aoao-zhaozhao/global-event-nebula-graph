@@ -1,7 +1,44 @@
+import { useMemo } from 'react';
 import { Crosshair, Maximize2, RadioTower, Search, X } from 'lucide-react';
 import { typeColors, typeLabels } from '../data/events.js';
 import { layerOptions } from '../utils/graphLayers.js';
+import { createCountryLookup, findCountryForNode } from '../utils/countryCatalog.js';
 import { globeEventTypes } from '../utils/globeData.js';
+
+function normalizeLookupValue(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_.-]+/g, '');
+}
+
+function buildCountrySearchOptions(graph, countryCatalog, countryLookup) {
+  const seen = new Set();
+  const options = [];
+
+  const addOption = (value, label = '') => {
+    const key = normalizeLookupValue(value);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    options.push({ value, label });
+  };
+
+  graph.nodes.forEach((node) => {
+    const country = findCountryForNode(node, countryLookup);
+    if (country) {
+      addOption(country.displayName, country.englishName || country.isoA3);
+      return;
+    }
+
+    addOption(node.name, node.id);
+  });
+
+  countryCatalog?.forEach((country) => {
+    addOption(country.displayName, country.englishName || country.isoA3);
+  });
+
+  return options;
+}
 
 function getRelated(selectedId, graph, nodeMap) {
   if (!selectedId) return [];
@@ -36,6 +73,11 @@ export default function Hud({
   onGlobeFiltersChange,
   onGlobeFocus,
 }) {
+  const countryLookup = useMemo(() => createCountryLookup(countryCatalog || []), [countryCatalog]);
+  const countryOptions = useMemo(
+    () => buildCountrySearchOptions(graph, countryCatalog, countryLookup),
+    [graph, countryCatalog, countryLookup],
+  );
   const nodeMap = new Map(graph.nodes.map((node) => [node.id, node]));
   const selectedNode = selectedId ? nodeMap.get(selectedId) : null;
   const hoveredNode = hoveredId ? nodeMap.get(hoveredId) : null;
@@ -51,10 +93,25 @@ export default function Hud({
   const handleSearch = (event) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    const query = String(formData.get('country-search') || '').trim().toLowerCase();
+    const query = normalizeLookupValue(formData.get('country-search'));
     if (!query) return;
-    const hit = graph.nodes.find((node) => node.name.toLowerCase().includes(query) || node.id.toLowerCase().includes(query));
-    if (hit && onGlobeFocus) onGlobeFocus(hit.id);
+
+    const directHit = graph.nodes.find(
+      (node) => normalizeLookupValue(node.name).includes(query) || normalizeLookupValue(node.id).includes(query),
+    );
+    if (directHit) {
+      onGlobeFocus?.(directHit.id);
+      return;
+    }
+
+    const country = countryLookup.get(query);
+    if (!country) return;
+
+    const countryHit = graph.nodes.find(
+      (node) => node.globeCountryId === country.id || findCountryForNode(node, countryLookup)?.id === country.id,
+    );
+
+    if (countryHit) onGlobeFocus?.(countryHit.id);
   };
 
   return (
@@ -135,11 +192,8 @@ export default function Hud({
             <Search size={16} />
             <input name="country-search" type="search" placeholder="搜索国家" list="country-options" autoComplete="off" />
             <datalist id="country-options">
-              {graph.nodes.map((node) => (
-                <option key={node.id} value={node.name} />
-              ))}
-              {countryCatalog?.map((country) => (
-                <option key={`catalog-${country.id}`} value={country.displayName} />
+              {countryOptions.map((option) => (
+                <option key={option.value} value={option.value} label={option.label} />
               ))}
             </datalist>
             <button type="submit">定位</button>
