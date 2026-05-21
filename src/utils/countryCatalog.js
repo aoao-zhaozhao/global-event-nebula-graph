@@ -203,7 +203,7 @@ export function findCountryForNode(nodeOrId, countryLookup) {
 }
 
 export async function loadCountryCatalog() {
-  const response = await fetch(COUNTRY_GEOJSON_URL, { cache: 'force-cache' });
+  const response = await fetch(COUNTRY_GEOJSON_URL, { cache: 'no-cache' });
   if (!response.ok) throw new Error(`Country GeoJSON ${response.status}`);
   const geojson = await response.json();
   return createCountryCatalog(geojson.features || []);
