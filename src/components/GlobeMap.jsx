@@ -70,17 +70,19 @@ function buildCountryMeshes(countryCatalog) {
   countryCatalog.forEach((country) => {
     const linePoints = [];
 
-    getPolygonGroups(country.feature.geometry).forEach((polygon) => {
-      const exterior = polygon[0];
-      if (!exterior || exterior.length < 4) return;
+    (country.features || [country.feature]).forEach((feature) => {
+      getPolygonGroups(feature.geometry).forEach((polygon) => {
+        const exterior = polygon[0];
+        if (!exterior || exterior.length < 4) return;
 
-      for (let i = 0; i < exterior.length - 1; i += 1) {
-        const [lonA, latA] = exterior[i];
-        const [lonB, latB] = exterior[i + 1];
-        if (Math.abs(lonA - lonB) > 180) continue;
-        linePoints.push(latLonToVector3(latA, lonA, RADIUS * 1.017));
-        linePoints.push(latLonToVector3(latB, lonB, RADIUS * 1.017));
-      }
+        for (let i = 0; i < exterior.length - 1; i += 1) {
+          const [lonA, latA] = exterior[i];
+          const [lonB, latB] = exterior[i + 1];
+          if (Math.abs(lonA - lonB) > 180) continue;
+          linePoints.push(latLonToVector3(latA, lonA, RADIUS * 1.017));
+          linePoints.push(latLonToVector3(latB, lonB, RADIUS * 1.017));
+        }
+      });
     });
 
     if (!linePoints.length) return;
@@ -222,7 +224,7 @@ function GlobeArcs({ links, nodeMap, hoveredId, selectedId }) {
 }
 
 function CountryBorders({ countryCatalog }) {
-  const features = useMemo(() => countryCatalog.map((country) => country.feature), [countryCatalog]);
+  const features = useMemo(() => countryCatalog.flatMap((country) => country.features || [country.feature]), [countryCatalog]);
   const geometry = useMemo(() => buildBorderGeometry(features), [features]);
 
   return (

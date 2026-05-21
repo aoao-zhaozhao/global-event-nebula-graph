@@ -4,11 +4,18 @@ const COUNTRY_DISPLAY_OVERRIDES = new Map([
   ['TWN', '台湾'],
 ]);
 const COUNTRY_ALIAS_OVERRIDES = new Map([
-  ['CHN', ['台湾', '台灣']],
+  ['CHN', ['台湾', '台灣', '中华民国', '中華民國', 'Republic of China', 'ROC']],
+]);
+const COUNTRY_FEATURE_INCLUDES = new Map([
+  ['CHN', ['TWN']],
 ]);
 
 function getCountryCode(properties) {
   return properties.ISO_A3 || properties.ADM0_A3 || '';
+}
+
+function isCountryCode(properties, code) {
+  return properties.ISO_A3 === code || properties.ADM0_A3 === code;
 }
 
 function normalizeLookupValue(value) {
@@ -106,12 +113,30 @@ export function getCountryDisplayName(feature) {
 }
 
 export function createCountryCatalog(features = []) {
+  const featureByCode = new Map();
+
+  features.forEach((feature) => {
+    const properties = feature?.properties || {};
+    [properties.ISO_A3, properties.ADM0_A3]
+      .filter(Boolean)
+      .filter((value) => String(value) !== '-99')
+      .forEach((code) => {
+        if (!featureByCode.has(code)) featureByCode.set(code, feature);
+      });
+  });
+
   return features
     .map((feature) => {
       const properties = feature?.properties || {};
-      if (properties.ISO_A3 === 'TWN' || properties.ADM0_A3 === 'TWN') return null;
-      const names = getFeatureNames(feature);
-      const codes = getFeatureCodes(feature);
+      if (isCountryCode(properties, 'TWN')) return null;
+
+      const countryCode = getCountryCode(properties);
+      const includedFeatures = (COUNTRY_FEATURE_INCLUDES.get(countryCode) || [])
+        .map((code) => featureByCode.get(code))
+        .filter(Boolean);
+      const countryFeatures = [feature, ...includedFeatures];
+      const names = countryFeatures.flatMap(getFeatureNames);
+      const codes = countryFeatures.flatMap(getFeatureCodes);
       const center = calculateFeatureCenter(feature);
 
       if (!names.length || !center) return null;
@@ -119,6 +144,7 @@ export function createCountryCatalog(features = []) {
       return {
         id: toNodeId(feature),
         feature,
+        features: countryFeatures,
         center,
         displayName: getCountryDisplayName(feature),
         englishName: properties.NAME_EN || properties.ADMIN || properties.NAME || '',
