@@ -1,5 +1,8 @@
 const KV_NAMESPACE = 'xingtu_data';
 const GRAPH_KEY = 'graph';
+const GRAPH_META_KEY = 'graph_meta';
+const GRAPH_NODES_KEY = 'graph_nodes';
+const GRAPH_LINKS_KEY = 'graph_links';
 const ADMIN_TOKEN_KEY = 'admin_token';
 const SESSION_COOKIE = 'xingtu_admin_session';
 const SESSION_TTL_SECONDS = 8 * 60 * 60;
@@ -68,20 +71,42 @@ function normalizeGraphData(data) {
     typeLabels: data.typeLabels,
     typeColors: data.typeColors,
     nodeLineColors: data.nodeLineColors,
-    nodes: data.nodes.map((node) => ({
-      id: String(node.id).trim(),
-      name: String(node.name).trim(),
-      type: String(node.type).trim(),
-      importance: Number(node.importance),
-      year: typeof node.year === 'number' ? node.year : String(node.year).trim(),
-      summary: String(node.summary).trim(),
-    })),
-    links: data.links.map((link) => ({
-      source: String(link.source).trim(),
-      target: String(link.target).trim(),
-      relation: String(link.relation).trim(),
-      strength: Number(link.strength),
-    })),
+    nodes: data.nodes.map((node) => {
+      const { id, name, type, importance, year, summary, ...rest } = node;
+      return {
+        ...rest,
+        id: String(id).trim(),
+        name: String(name).trim(),
+        type: String(type).trim(),
+        importance: Number(importance),
+        year: typeof year === 'number' ? year : String(year).trim(),
+        summary: String(summary).trim(),
+      };
+    }),
+    links: data.links.map((link) => {
+      const { source, target, relation, strength, ...rest } = link;
+      return {
+        ...rest,
+        source: String(source).trim(),
+        target: String(target).trim(),
+        relation: String(relation).trim(),
+        strength: Number(strength),
+      };
+    }),
+  };
+}
+
+function buildGraphMeta(data) {
+  return {
+    schemaVersion: 2,
+    typeLabels: data.typeLabels,
+    typeColors: data.typeColors,
+    nodeLineColors: data.nodeLineColors,
+    counts: {
+      nodes: data.nodes.length,
+      links: data.links.length,
+    },
+    updatedAt: new Date().toISOString(),
   };
 }
 
@@ -195,11 +220,26 @@ async function getAdminToken(edgeKV) {
 }
 
 async function readGraph(edgeKV) {
-  const data = await edgeKV.get(GRAPH_KEY, { type: 'json' });
-  if (data === undefined || data === null) {
-    return jsonResponse({ error: '云端 graph 数据尚未初始化' }, 404);
+  const [meta, nodes, links, legacy] = await Promise.all([
+    edgeKV.get(GRAPH_META_KEY, { type: 'json' }),
+    edgeKV.get(GRAPH_NODES_KEY, { type: 'json' }),
+    edgeKV.get(GRAPH_LINKS_KEY, { type: 'json' }),
+    edgeKV.get(GRAPH_KEY, { type: 'json' }),
+  ]);
+
+  if (meta && Array.isArray(nodes) && Array.isArray(links)) {
+    return jsonResponse({
+      ...meta,
+      nodes,
+      links,
+    });
   }
-  return jsonResponse(data);
+
+  if (legacy) {
+    return jsonResponse(legacy);
+  }
+
+  return jsonResponse({ error: '云端 graph 数据尚未初始化' }, 404);
 }
 
 async function login(request, edgeKV) {
@@ -257,7 +297,12 @@ async function writeGraph(request, edgeKV) {
 
   const data = normalizeGraphData(await request.json());
   validateGraphData(data);
-  await edgeKV.put(GRAPH_KEY, JSON.stringify(data));
+  await Promise.all([
+    edgeKV.put(GRAPH_META_KEY, JSON.stringify(buildGraphMeta(data))),
+    edgeKV.put(GRAPH_NODES_KEY, JSON.stringify(data.nodes)),
+    edgeKV.put(GRAPH_LINKS_KEY, JSON.stringify(data.links)),
+    edgeKV.put(GRAPH_KEY, JSON.stringify(data)),
+  ]);
 
   return jsonResponse({ ok: true, data });
 }
