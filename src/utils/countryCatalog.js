@@ -9,6 +9,19 @@ const COUNTRY_ALIAS_OVERRIDES = new Map([
 const COUNTRY_FEATURE_INCLUDES = new Map([
   ['CHN', ['TWN']],
 ]);
+const SYNTHETIC_COUNTRIES = [
+  {
+    id: 'bahrain',
+    feature: null,
+    features: [],
+    center: { lat: 26.0667, lon: 50.5577 },
+    displayName: '巴林',
+    englishName: 'Bahrain',
+    isoA2: 'BH',
+    isoA3: 'BHR',
+    aliases: ['巴林', 'Bahrain', 'BH', 'BHR'],
+  },
+];
 
 function getCountryCode(properties) {
   return properties.ISO_A3 || properties.ADM0_A3 || '';
@@ -160,6 +173,7 @@ export function createCountryCatalog(features = []) {
       };
     })
     .filter(Boolean)
+    .concat(SYNTHETIC_COUNTRIES)
     .sort((a, b) => a.displayName.localeCompare(b.displayName, 'zh-Hans'));
 }
 
