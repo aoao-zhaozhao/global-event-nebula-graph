@@ -77,7 +77,8 @@ function extractCookie(headers) {
         ? [headers.get('set-cookie')]
         : [];
   if (!setCookies.length) return '';
-  return String(setCookies[0]).split(';')[0].trim();
+  const sessionCookie = setCookies.find((value) => String(value).startsWith('xingtu_admin_session='));
+  return String(sessionCookie || setCookies[0]).split(';')[0].trim();
 }
 
 async function requestJson(url, options = {}) {
