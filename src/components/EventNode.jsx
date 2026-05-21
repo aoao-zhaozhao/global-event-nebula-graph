@@ -73,7 +73,7 @@ function EventNode({ node, position, selected, hovered, dimmed, sizeMultiplier =
           <primitive object={glowMaterial} attach="material" />
         </mesh>
       </Billboard>
-      <NodeLabel node={node} position={[0, 0, 0]} active={active || node.importance >= 8.5} />
+      <NodeLabel node={node} position={[0, 0, 0]} active={active || node.importance >= 9.2} />
     </group>
   );
 }
