@@ -7,3 +7,4 @@ backups/
 .env.*
 *.log
 *.mp4
+graph.json
