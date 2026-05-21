@@ -1,29 +1,29 @@
-# International Relations Starmap
+# 国际关系星图
 
-Three.js + React project for an international relations graph and globe view.
+这是一个基于 React 和 Three.js 的国际关系事件图与地球视图项目。
 
-## Development
+## 本地开发
 
 ```bash
 npm install
 npm run dev
 ```
 
-Admin/manager tooling:
+管理界面：
 
 ```bash
 npm run manager
 ```
 
-Production build:
+生产构建：
 
 ```bash
 npm run build
 ```
 
-## Data Model
+## 数据结构
 
-The graph payload uses this shape:
+图谱数据使用以下结构：
 
 ```json
 {
@@ -35,49 +35,79 @@ The graph payload uses this shape:
 }
 ```
 
-Source data lives in `src/data/events.js`.
+本地源数据位于 `src/data/events.js`。
 
-## Bulk Data Workflow
+## 批量数据流程
 
-Use this flow for large updates:
+适合大批量更新时使用：
 
-1. Edit `src/data/events.js`.
-2. Export a JSON payload:
+1. 修改 `src/data/events.js`。
+2. 导出 JSON：
 
 ```bash
 npm run export:graph -- --out graph.json
 ```
 
-3. Upload the JSON to the live site:
+3. 上传到线上站点：
 
 ```bash
 npm run upload:graph -- --base-url https://www.global-event-nebula-graph.top --token YOUR_ADMIN_TOKEN --file graph.json
 ```
 
-`graph.json` is a generated local file. Do not commit it.
+`graph.json` 是本地生成文件，不要提交到仓库。
 
-## Upload Rules
+## 推送到仓库
 
-- Use the live site base URL, not the Aliyun console URL.
-- The upload script logs in first, then writes through `PUT /api/data`.
-- The API stores data in ESA EdgeKV namespace `xingtu_data`.
-- Current storage keys are:
+修改代码后，把内容同步到 GitHub 的基本流程如下：
+
+1. 查看改动：
+
+```bash
+git status
+```
+
+2. 添加文件：
+
+```bash
+git add .
+```
+
+3. 提交到本地仓库：
+
+```bash
+git commit -m "你的提交说明"
+```
+
+4. 推送到远端仓库：
+
+```bash
+git push origin main
+```
+
+如果推送时出现 `Connection was reset`，通常是网络传输中断。可以换个网络后重试，或稍后再推。
+
+## 上传规则
+
+- 线上地址使用正式站点地址，不要用控制台地址。
+- 上传脚本会先登录，再通过 `PUT /api/data` 写入数据。
+- API 使用的 EdgeKV 命名空间是 `xingtu_data`。
+- 当前存储键包括：
   - `graph_meta`
   - `graph_nodes`
   - `graph_links`
-  - `graph` for compatibility and rollback
-- The old single-key `graph` layout is kept as a fallback, but new bulk uploads should use the script above.
-- Do not use the console's manual KV editor for large graph payloads.
+  - `graph` 兼容旧格式和回滚
+- 旧的单键 `graph` 结构保留为兜底方案，但新的批量上传应优先使用脚本。
+- 大图谱数据不要手工在控制台里逐条编辑 KV。
 
-## API Notes
+## API 说明
 
-- `GET /api/data` returns the reconstructed graph payload.
-- `PUT /api/data` requires an authenticated admin session and updates the KV-backed graph data.
-- The live app URL is `https://www.global-event-nebula-graph.top/`.
+- `GET /api/data` 返回重建后的图谱数据。
+- `PUT /api/data` 需要已登录的管理员会话。
+- 线上应用地址：`https://www.global-event-nebula-graph.top/`
 
-## Files To Know
+## 相关文件
 
-- `src/data/events.js` - local source graph data
-- `tools/export-graph-json.mjs` - exports JSON from local source data
-- `tools/upload-graph.mjs` - uploads JSON to the live ESA site
-- `edge/index.js` - edge API and KV read/write logic
+- `src/data/events.js` - 本地图谱源数据
+- `tools/export-graph-json.mjs` - 导出 JSON
+- `tools/upload-graph.mjs` - 上传到线上站点
+- `edge/index.js` - 边缘 API 和 KV 读写逻辑
