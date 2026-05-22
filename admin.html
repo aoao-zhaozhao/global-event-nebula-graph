@@ -4,6 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>星图云端数据管理</title>
+    <script>
+      window.AliyunCaptchaConfig = {
+        region: "cn",
+        prefix: "esa-k2vdoqq6bb",
+      };
+    </script>
+    <script type="text/javascript" src="https://o.alicdn.com/captcha-frontend/aliyunCaptcha/AliyunCaptcha.js"></script>
     <style>
       :root {
         color: #edf8ff;
@@ -290,6 +297,22 @@
       .hidden {
         display: none;
       }
+
+      #captcha-element {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+      }
+
+      #captchaTriggerButton {
+        position: fixed;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        border: 0;
+        opacity: 0;
+        pointer-events: none;
+      }
     </style>
   </head>
   <body>
@@ -389,6 +412,8 @@
       </section>
     </main>
 
+    <div id="captcha-element"></div>
+    <button id="captchaTriggerButton" type="button" tabindex="-1" aria-hidden="true"></button>
     <script type="module" src="/src/admin.js"></script>
   </body>
 </html>

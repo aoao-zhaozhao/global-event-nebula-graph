@@ -11,9 +11,15 @@ const state = {
   authed: false,
   loadingAuth: true,
   saving: false,
+  captchaReady: false,
+  captchaInstance: null,
+  pendingLoginToken: '',
 };
 
 const $ = (id) => document.getElementById(id);
+const CAPTCHA_SCENE_ID = 'j6lgloi0';
+const CAPTCHA_TRIGGER_ID = 'captchaTriggerButton';
+const CAPTCHA_ENABLED = !['localhost', '127.0.0.1'].includes(window.location.hostname);
 
 const nodeFields = {
   id: $('nodeId'),
@@ -81,6 +87,32 @@ async function refreshSession() {
   }
 }
 
+function loginPath(captchaVerifyParam) {
+  if (!captchaVerifyParam) return '/api/admin/login';
+  return `/api/admin/login?captcha_verify_param=${encodeURIComponent(captchaVerifyParam)}`;
+}
+
+async function submitLogin(token, captchaVerifyParam = '') {
+  const payload = await api(loginPath(captchaVerifyParam), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json; charset=utf-8' },
+    body: JSON.stringify({ token }),
+  });
+
+  state.authed = Boolean(payload.authenticated);
+  $('adminTokenInput').value = '';
+  setMessage('登录成功。token 已从输入框清除，本次会话可保存到云端。', 'ok');
+}
+
+function startCaptchaLogin(token) {
+  if (!state.captchaReady) {
+    throw new Error('验证码尚未加载完成，请稍后再试');
+  }
+
+  state.pendingLoginToken = token;
+  $(CAPTCHA_TRIGGER_ID).click();
+}
+
 async function login() {
   try {
     const token = $('adminTokenInput').value.trim();
@@ -89,22 +121,81 @@ async function login() {
     state.loadingAuth = true;
     updateAuthUi();
 
-    const payload = await api('/api/admin/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({ token }),
-    });
+    if (CAPTCHA_ENABLED) {
+      startCaptchaLogin(token);
+      return;
+    }
 
-    state.authed = Boolean(payload.authenticated);
-    $('adminTokenInput').value = '';
-    setMessage('登录成功。token 已从输入框清除，本次会话可保存到云端。', 'ok');
+    await submitLogin(token);
   } catch (error) {
     state.authed = false;
+    state.pendingLoginToken = '';
+    state.loadingAuth = false;
     setMessage(error.message, 'error');
-  } finally {
+    updateAuthUi();
+    return;
+  }
+
+  state.loadingAuth = false;
+  updateAuthUi();
+}
+
+function initCaptcha() {
+  if (!CAPTCHA_ENABLED) {
+    state.captchaReady = true;
+    return;
+  }
+
+  if (typeof window.initAliyunCaptcha !== 'function') {
+    setMessage('验证码脚本加载失败，请刷新页面后再试', 'error');
     state.loadingAuth = false;
     updateAuthUi();
+    return;
   }
+
+  window.initAliyunCaptcha({
+    SceneId: CAPTCHA_SCENE_ID,
+    mode: 'popup',
+    element: '#captcha-element',
+    button: `#${CAPTCHA_TRIGGER_ID}`,
+    success: async (captchaVerifyParam) => {
+      const token = state.pendingLoginToken;
+      state.pendingLoginToken = '';
+
+      if (!token) {
+        state.loadingAuth = false;
+        updateAuthUi();
+        return;
+      }
+
+      try {
+        await submitLogin(token, captchaVerifyParam);
+      } catch (error) {
+        state.authed = false;
+        setMessage(error.message, 'error');
+        state.captchaInstance?.refresh?.();
+      } finally {
+        state.loadingAuth = false;
+        updateAuthUi();
+      }
+    },
+    fail: (result) => {
+      state.pendingLoginToken = '';
+      state.loadingAuth = false;
+      setMessage(result?.message || '验证码验证失败，请重试', 'error');
+      updateAuthUi();
+    },
+    getInstance: (instance) => {
+      state.captchaInstance = instance;
+      state.captchaReady = true;
+      updateAuthUi();
+    },
+    slideStyle: {
+      width: 360,
+      height: 40,
+    },
+    language: 'cn',
+  });
 }
 
 async function logout() {
@@ -554,6 +645,7 @@ $('importButton').addEventListener('click', () => {
 
 async function init() {
   updateAuthUi();
+  initCaptcha();
   try {
     state.countryCatalog = await loadCountryCatalog();
     state.countryLookup = createCountryLookup(state.countryCatalog);
