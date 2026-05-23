@@ -58,6 +58,50 @@ button {
   opacity: 0.34;
 }
 
+.top-hud {
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 166px;
+  z-index: 5;
+  overflow: visible;
+}
+
+.top-hud-hitbox {
+  pointer-events: auto;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 1;
+  width: min(740px, calc(100% - 32px));
+  height: 166px;
+  transform: translateX(-50%);
+}
+
+.top-hud-panel {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  height: 166px;
+  transform: translateY(-128px);
+  opacity: 0.24;
+  transition:
+    transform 320ms ease,
+    opacity 240ms ease;
+}
+
+.top-hud-open .top-hud-panel,
+.top-hud:has(.top-hud-hitbox:hover) .top-hud-panel,
+.top-hud:has(.top-hud-panel:hover) .top-hud-panel,
+.top-hud:focus-within .top-hud-panel {
+  pointer-events: auto;
+  transform: translateY(0);
+  opacity: 1;
+}
+
 .topbar {
   pointer-events: none;
   position: absolute;
@@ -156,6 +200,7 @@ button {
     inset 0 0 18px rgba(255, 255, 255, 0.025);
   backdrop-filter: blur(14px);
   transform: translateX(-50%);
+  font-family: "STKaiti", "KaiTi", "KaiTi_GB2312", "Songti SC", serif;
 }
 
 .layer-button {
@@ -546,6 +591,7 @@ button {
   color: rgba(255, 255, 255, 0.86);
   font-size: 17px;
   font-weight: 700;
+  font-family: "STKaiti", "KaiTi", "KaiTi_GB2312", "Songti SC", serif;
   line-height: 1.18;
 }
 

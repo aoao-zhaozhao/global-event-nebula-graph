@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Crosshair, Maximize2, RadioTower, Search, X } from 'lucide-react';
 import { typeColors, typeLabels } from '../data/events.js';
 import { layerOptions } from '../utils/graphLayers.js';
@@ -97,6 +97,7 @@ export default function Hud({
   onGlobeFiltersChange,
   onGlobeFocus,
 }) {
+  const [isTopHudOpen, setIsTopHudOpen] = useState(true);
   const countryLookup = useMemo(() => createCountryLookup(countryCatalog || []), [countryCatalog]);
   const countryOptions = useMemo(
     () => buildCountrySearchOptions(graph, countryCatalog, countryLookup),
@@ -114,6 +115,11 @@ export default function Hud({
     if (b === 'all') return 1;
     return Number(a) - Number(b);
   });
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setIsTopHudOpen(false), 5200);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const handleSearch = (event) => {
     event.preventDefault();
@@ -141,29 +147,42 @@ export default function Hud({
 
   return (
     <>
-      <header className="topbar">
-        <div className="title-block">
-          <h1>国际关系事件星图</h1>
-          <span className="eyebrow">2020-2026 GEOPOLITICAL CONSTELLATION</span>
-        </div>
-        <button className="focus-button" type="button" onClick={onFocusCore}>
-          <Crosshair size={17} />
-          {activeLayer === 'globe' ? '回到地球视角' : '聚焦核心事件'}
-        </button>
-      </header>
+      <div className={isTopHudOpen ? 'top-hud top-hud-open' : 'top-hud'} aria-label="顶部星图导航">
+        <div className="top-hud-hitbox" aria-hidden="true" onMouseEnter={() => setIsTopHudOpen(true)} />
+        <div
+          className="top-hud-panel"
+          onMouseEnter={() => setIsTopHudOpen(true)}
+          onMouseLeave={() => setIsTopHudOpen(false)}
+          onFocus={() => setIsTopHudOpen(true)}
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget)) setIsTopHudOpen(false);
+          }}
+        >
+          <header className="topbar">
+            <div className="title-block">
+              <h1>国际关系事件星图</h1>
+              <span className="eyebrow">2020-2026 GEOPOLITICAL CONSTELLATION</span>
+            </div>
+            <button className="focus-button" type="button" onClick={onFocusCore}>
+              <Crosshair size={17} />
+              {activeLayer === 'globe' ? '回到地球视角' : '聚焦核心事件'}
+            </button>
+          </header>
 
-      <nav className="layer-switch" aria-label="星图层级">
-        {layerOptions.map((layer) => (
-          <button
-            key={layer.id}
-            type="button"
-            className={activeLayer === layer.id ? 'layer-button layer-button-active' : 'layer-button'}
-            onClick={() => onLayerChange(layer.id)}
-          >
-            {layer.label}
-          </button>
-        ))}
-      </nav>
+          <nav className="layer-switch" aria-label="星图层级">
+            {layerOptions.map((layer) => (
+              <button
+                key={layer.id}
+                type="button"
+                className={activeLayer === layer.id ? 'layer-button layer-button-active' : 'layer-button'}
+                onClick={() => onLayerChange(layer.id)}
+              >
+                {layer.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+      </div>
 
       <aside className={`info-card ${selectedNode ? 'info-card-open' : ''}`}>
         {selectedNode && (
